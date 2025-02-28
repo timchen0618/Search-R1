@@ -10,6 +10,7 @@ from verl.utils.tracking import Tracking
 import shutil
 import requests
 import math
+import time
 
 @dataclass
 class GenerationConfig:
@@ -283,36 +284,42 @@ class LLMGenerationManager:
         # topks_across_turns[i] is a list of topks across turns for the i-th example
         topks_across_turns = [[] for _ in range(gen_batch.batch['input_ids'].shape[0])]
 
+        
         # Main generation loop
         for step in range(self.config.max_turns):
+            start_time = time.time()
             if not active_mask.sum():
                 break
             rollings.batch = self.tensor_fn.cut_to_effective_len(
                 rollings.batch,
                 keys=['input_ids', 'attention_mask', 'position_ids']
             )
-            print("step:", step)
-            print("active_mask sum:", active_mask.sum().item(), "batch_size:", rollings.batch["input_ids"].shape[0])
-            print("turns_stats:", turns_stats.tolist())
+            # print("step:", step)
+            # print("active_mask sum:", active_mask.sum().item(), "batch_size:", rollings.batch["input_ids"].shape[0])
+            # print("turns_stats:", turns_stats.tolist())
             
             # gen_output = self.actor_rollout_wg.generate_sequences(rollings)
             rollings_active = DataProto.from_dict({
                 k: v[active_mask] for k, v in rollings.batch.items()
             }) 
             
-            print("active_mask sum:", active_mask.sum().item())
-            print("rollings input_ids shape:", rollings.batch["input_ids"].shape)
-            print("rollings_active input_ids shape:", rollings_active.batch["input_ids"].shape)           
+            # print("active_mask sum:", active_mask.sum().item())
+            # print("rollings input_ids shape:", rollings.batch["input_ids"].shape)
+            # print("rollings_active input_ids shape:", rollings_active.batch["input_ids"].shape)           
             gen_output = self._generate_with_gpu_padding(rollings_active)
 
             meta_info = gen_output.meta_info            
             responses_ids, responses_str = self._postprocess_responses(gen_output.batch['responses'])
             responses_ids, responses_str = self.tensor_fn._example_level_pad(responses_ids, responses_str, active_mask)
 
+            print("time before execute_predictions:", time.time() - start_time)
+            start_time = time.time()
             # Execute in environment and process observations
             next_obs, dones, valid_action, is_search, cur_topks, cur_percentage_not_nones = self.execute_predictions(
                 responses_str, self.tokenizer.pad_token, active_mask
             )
+            print("time taken to execute_predictions:", time.time() - start_time)
+            start_time = time.time()
             
             curr_active_mask = torch.tensor([not done for done in dones], dtype=torch.bool)
             active_mask = active_mask * curr_active_mask
@@ -342,6 +349,7 @@ class LLMGenerationManager:
                 responses_ids,
                 next_obs_ids
             )
+            print("time taken to update_rolling_state:", time.time() - start_time)
             
         # final LLM rollout
         if active_mask.sum():
