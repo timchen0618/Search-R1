@@ -140,7 +140,7 @@ class BaseRetriever:
     def search(self, query: str, num: int = None, return_score: bool = False):
         return self._search(query, num, return_score)
     
-    def batch_search(self, query_list: List[str], num: int = None, return_score: bool = False):
+    def batch_search(self, query_list: List[str], num: List[int]=None, return_score: bool = False):
         return self._batch_search(query_list, num, return_score)
 
 class BM25Retriever(BaseRetriever):
@@ -192,7 +192,7 @@ class BM25Retriever(BaseRetriever):
         else:
             return results
 
-    def _batch_search(self, query_list: List[str], num: int = None, return_score: bool = False):
+    def _batch_search(self, query_list: List[str], num: List[int]=None, return_score: bool = False):
         results = []
         scores = []
         for query in query_list:
@@ -238,18 +238,19 @@ class DenseRetriever(BaseRetriever):
         else:
             return results
 
-    def _batch_search(self, query_list: List[str], num: int = None, return_score: bool = False):
+    def _batch_search(self, query_list: List[str], num: List[int]=None, return_score: bool = False):
         if isinstance(query_list, str):
             query_list = [query_list]
         if num is None:
-            num = self.topk
+            num = [self.topk] * len(query_list)
+        max_num = max(num)
         
         results = []
         scores = []
         for start_idx in tqdm(range(0, len(query_list), self.batch_size), desc='Retrieval process: '):
             query_batch = query_list[start_idx:start_idx + self.batch_size]
             batch_emb = self.encoder.encode(query_batch)
-            batch_scores, batch_idxs = self.index.search(batch_emb, k=num)
+            batch_scores, batch_idxs = self.index.search(batch_emb, k=max_num)
             batch_scores = batch_scores.tolist()
             batch_idxs = batch_idxs.tolist()
 
@@ -257,7 +258,8 @@ class DenseRetriever(BaseRetriever):
             flat_idxs = sum(batch_idxs, [])
             batch_results = load_docs(self.corpus, flat_idxs)
             # chunk them back
-            batch_results = [batch_results[i*num : (i+1)*num] for i in range(len(batch_idxs))]
+            batch_results = [batch_results[i*max_num : i*max_num+num[i]] for i in range(len(batch_idxs))]
+            batch_scores = [b[:num[i]] for i, b in enumerate(batch_scores)]
             
             results.extend(batch_results)
             scores.extend(batch_scores)
@@ -317,7 +319,7 @@ class Config:
 
 class QueryRequest(BaseModel):
     queries: List[str]
-    topk: Optional[int] = None
+    topk: Optional[List[int]] = None
     return_scores: bool = False
 
 
@@ -330,12 +332,13 @@ def retrieve_endpoint(request: QueryRequest):
     Input format:
     {
       "queries": ["What is Python?", "Tell me about neural networks."],
-      "topk": 3,
+      "topk": [3, 5],
       "return_scores": true
     }
     """
     if not request.topk:
-        request.topk = config.retrieval_topk  # fallback to default
+        request.topk = [config.retrieval_topk] * len(request.queries)  # fallback to default
+    request.topk = [topk if topk is not None else config.retrieval_topk for topk in request.topk]
 
     # Perform batch retrieval
     results, scores = retriever.batch_search(

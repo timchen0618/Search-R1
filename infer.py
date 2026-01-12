@@ -25,10 +25,18 @@ device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 curr_eos = [151645, 151643] # for Qwen2.5 series models
 curr_search_template = '\n\n{output_text}<information>{search_results}</information>\n\n'
 
+# def prepare_prompt(question):
+#     return f"""Answer the given question. Each question has multiple answers. You should provide all the answers. \
+#     You must conduct reasoning inside <think> and </think> first every time you get new information. \
+#     After reasoning, if you find you lack some knowledge, you can call a search engine by <search> query </search> and it will return the top searched results between <information> and </information>. \
+#     You can search as many times as your want. \
+#     If you find one answer from the documents, you can directly provide the answer inside <answer> and </answer>, without detailed illustrations. You should provide all the answers, so you can output <answer> and </answer> multiple times. For example, <answer> Beijing </answer>. Question: {question}\n"""
+
+
 def prepare_prompt(question):
     return f"""Answer the given question. Each question has multiple answers. You should provide all the answers. \
     You must conduct reasoning inside <think> and </think> first every time you get new information. \
-    After reasoning, if you find you lack some knowledge, you can call a search engine by <search> query </search> and it will return the top searched results between <information> and </information>. \
+    After reasoning, if you find you lack some knowledge, you can call a search engine by <search topk=N> query </search> and it will return the top-N searched results between <information> and </information>. Please always specify the topk value, which is an integer between 1 and 10. \
     You can search as many times as your want. \
     If you find one answer from the documents, you can directly provide the answer inside <answer> and </answer>, without detailed illustrations. You should provide all the answers, so you can output <answer> and </answer> multiple times. For example, <answer> Beijing </answer>. Question: {question}\n"""
 

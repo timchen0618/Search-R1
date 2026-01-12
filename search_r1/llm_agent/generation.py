@@ -68,7 +68,7 @@ class LLMGenerationManager:
         if self.config.no_think_rl:
             raise ValueError('stop')
             # if no_think_rl is enabled, only keep action in the str
-            actions, _ = self.env.postprocess_predictions(responses_str)
+            actions, _, _ = self.env.postprocess_predictions(responses_str)
             responses_str=[f"<answer>{envs[idx].ACTION_LOOKUP[action]}</answer>" for idx, action in enumerate(actions)]
             print("RESPONSES:", responses_str)
         responses = self._batch_tokenize(responses_str)
@@ -364,10 +364,10 @@ class LLMGenerationManager:
         Returns:
             List of observation strings
         """
-        cur_actions, contents = self.postprocess_predictions(predictions)
+        cur_actions, contents, topks = self.postprocess_predictions(predictions)
         next_obs, dones, valid_action, is_search = [], [], [], []
         
-        search_queries = [content for action, content in zip(cur_actions, contents) if action == 'search']
+        search_queries = [(content, topk) for action, content, topk in zip(cur_actions, contents, topks) if action == 'search']
         if do_search:
             search_results = self.batch_search(search_queries)
             assert len(search_results) == sum([1 for action in cur_actions if action == 'search'])
@@ -416,26 +416,34 @@ If I want to give the final answer, I should put the answer between <answer> and
         """
         actions = []
         contents = []
+        topks = []
                 
         for prediction in predictions:
             if isinstance(prediction, str): # for llm output
-                pattern = r'<(search|answer)>(.*?)</\1>'
+                pattern = r'<(?P<action>search|answer)(?:\s+topk=(?P<topk>\d+))?>(?P<content>.*?)</(?P=action)>'
+                # pattern = r'<(search|answer)>(.*?)</\1>'
                 match = re.search(pattern, prediction, re.DOTALL)
+                # if match:
+                #     content = match.group(2).strip()  # Return only the content inside the tags
+                #     action = match.group(1)
                 if match:
-                    content = match.group(2).strip()  # Return only the content inside the tags
-                    action = match.group(1)
+                    content = match.group('content').strip()
+                    action = match.group('action')
+                    topk = match.group('topk')
                 else:
                     content = ''
                     action = None
+                    topk = None
             else:
                 raise ValueError(f"Invalid prediction type: {type(prediction)}")
             
             actions.append(action)
+            topks.append(topk)
             contents.append(content)
             
-        return actions, contents
+        return actions, contents, topks
 
-    def batch_search(self, queries: List[str] = None) -> str:
+    def batch_search(self, queries: List[tuple[str, int]] = None) -> str:
         """
         Batchified search for queries.
         Args:
@@ -448,10 +456,11 @@ If I want to give the final answer, I should put the answer between <answer> and
         return [self._passages2string(result) for result in results]
 
     def _batch_search(self, queries):
-        
+        query_texts, topks = zip(*queries)
+        topks = [topk if topk is not None else self.config.topk for topk in topks]
         payload = {
-            "queries": queries,
-            "topk": self.config.topk,
+            "queries": query_texts,
+            "topk": topks,
             "return_scores": True
         }
         
@@ -459,8 +468,9 @@ If I want to give the final answer, I should put the answer between <answer> and
 
     def _passages2string(self, retrieval_result):
         format_reference = ''
+        print('===================')
         for idx, doc_item in enumerate(retrieval_result):
-            
+            print(doc_item)
             content = doc_item['document']['contents']
             title = content.split("\n")[0]
             text = "\n".join(content.split("\n")[1:])
