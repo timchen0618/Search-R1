@@ -109,7 +109,7 @@ def main(config):
         import os
         os.environ['TOKENIZERS_PARALLELISM'] = 'true'
         os.environ['NCCL_DEBUG'] = 'WARN'
-        ray.init()
+        ray.init(address="auto")
 
     ray.get(main_task.remote(config))
 
