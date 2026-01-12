@@ -42,6 +42,14 @@ def pooling(
         return last_hidden_state[:, 0]
     elif pooling_method == "pooler":
         return pooler_output
+    elif pooling_method == "last":
+        left_padding = (attention_mask[:, -1].sum() == attention_mask.shape[0])
+        if left_padding:
+            return last_hidden_state[:, -1]
+        else:
+            sequence_lengths = attention_mask.sum(dim=1) - 1
+            batch_size = last_hidden_state.shape[0]
+            return last_hidden_state[torch.arange(batch_size, device=last_hidden_state.device), sequence_lengths]
     else:
         raise NotImplementedError("Pooling method not implemented!")
 
@@ -226,7 +234,7 @@ class Index_Builder:
 
             else:
                 output = self.encoder(**inputs, return_dict=True)
-                embeddings = pooling(output.pooler_output, 
+                embeddings = pooling(output.pooler_output if self.pooling_method == "pooler" else None, 
                                     output.last_hidden_state, 
                                     inputs['attention_mask'],
                                     self.pooling_method)
@@ -322,7 +330,7 @@ def main():
                 pooling_method = v
                 break
     else:
-        if args.pooling_method not in ['mean','cls','pooler']:
+        if args.pooling_method not in ['mean','cls','pooler', 'last']:
             raise NotImplementedError
         else:
             pooling_method = args.pooling_method
