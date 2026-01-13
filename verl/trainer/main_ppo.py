@@ -112,13 +112,6 @@ def main(config):
         # ray.init(address="auto")
         
         import os
-        # --- FIX: Force Network Interfaces ---
-        # This prevents the "Hang" by ensuring Ray and NCCL use the correct
-        # network adapter (eth0) instead of getting confused by Docker/Localhost.
-        # Note: Run 'ip addr' to verify if your main interface is 'eth0', 'ens3', or 'ib0'.
-        os.environ["NCCL_SOCKET_IFNAME"] = "eth0"
-        os.environ["GLOO_SOCKET_IFNAME"] = "eth0"
-
         # --- FIX: Standard Env Vars ---
         os.environ['TOKENIZERS_PARALLELISM'] = 'true'
         os.environ['NCCL_DEBUG'] = 'WARN'
@@ -126,7 +119,7 @@ def main(config):
         # --- FIX: Start Local Ray Instance ---
         # We REMOVE address="auto" so the script starts its own instance.
         # We disable the dashboard to save ports/resources on the cluster.
-        ray.init(include_dashboard=False)
+        ray.init()
         
 
     ray.get(main_task.remote(config))

@@ -458,6 +458,7 @@ If I want to give the final answer, I should put the answer between <answer> and
     def _batch_search(self, queries):
         query_texts, topks = zip(*queries)
         topks = [topk if topk is not None else self.config.topk for topk in topks]
+        print('topks:', topks)
         payload = {
             "queries": query_texts,
             "topk": topks,
@@ -468,9 +469,9 @@ If I want to give the final answer, I should put the answer between <answer> and
 
     def _passages2string(self, retrieval_result):
         format_reference = ''
-        print('===================')
+        # print('===================')
         for idx, doc_item in enumerate(retrieval_result):
-            print(doc_item)
+            # print(doc_item)
             content = doc_item['document']['contents']
             title = content.split("\n")[0]
             text = "\n".join(content.split("\n")[1:])
