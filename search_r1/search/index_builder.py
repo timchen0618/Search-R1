@@ -34,7 +34,7 @@ def pooling(
         last_hidden_state,
         attention_mask = None,
         pooling_method = "mean"
-    ):
+    ):            
     if pooling_method == "mean":
         last_hidden = last_hidden_state.masked_fill(~attention_mask[..., None].bool(), 0.0)
         return last_hidden.sum(dim=1) / attention_mask.sum(dim=1)[..., None]

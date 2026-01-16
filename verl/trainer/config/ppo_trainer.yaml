@@ -148,6 +148,7 @@ reward_model:
 retriever:
   url: "http://127.0.0.1:8000/retrieve"
   topk: 3
+  dynamic_topk: False
 
 algorithm:
   gamma: 1.0

@@ -275,6 +275,10 @@ def compute_data_metrics(batch, use_critic=True):
     if 'valid_search_stats' in batch.meta_info:
         metrics['env/number_of_valid_search'] = float(np.array(batch.meta_info['valid_search_stats'], dtype=np.int16).mean())
 
+    if 'average_topks' in batch.meta_info:
+        metrics['dynamic_topk/average_topks'] = float(batch.meta_info['average_topks'])
+    if 'percentage_not_nones' in batch.meta_info:
+        metrics['dynamic_topk/percentage_not_nones'] = float(batch.meta_info['percentage_not_nones'])
 
     return metrics
 
@@ -452,6 +456,7 @@ class RayPPOTrainer(object):
             no_think_rl=self.config.algorithm.no_think_rl,
             search_url = self.config.retriever.url,
             topk = self.config.retriever.topk,
+            dynamic_topk = self.config.retriever.dynamic_topk,
         )
 
         # Agent config preparation
@@ -683,6 +688,7 @@ class RayPPOTrainer(object):
             no_think_rl=self.config.algorithm.no_think_rl,
             search_url = self.config.retriever.url,
             topk = self.config.retriever.topk,
+            dynamic_topk = self.config.retriever.dynamic_topk,
         )
 
         generation_manager = LLMGenerationManager(

@@ -26,7 +26,7 @@ retriever_model="Qwen/Qwen3-Embedding-0.6B"
 
 # change faiss_type to HNSW32/64/128 for ANN indexing
 # change retriever_name to bm25 for BM25 indexing
-CUDA_VISIBLE_DEVICES=0,1,2,3 python search_r1/search/index_builder.py \
+CUDA_VISIBLE_DEVICES=0 python search_r1/search/index_builder.py \
     --retrieval_method $retriever_name \
     --model_path $retriever_model \
     --corpus_path $corpus_file \
@@ -36,4 +36,5 @@ CUDA_VISIBLE_DEVICES=0,1,2,3 python search_r1/search/index_builder.py \
     --batch_size 512 \
     --pooling_method last \
     --faiss_type Flat \
-    --save_embedding
+    --save_embedding \
+    --embedding_path /scratch/hc3337/qampari_searchr1/emb_qwen3-0.6b.memmap

@@ -30,12 +30,12 @@ def make_prefix(dp, template_type):
     # NOTE: also need to change reward_score/countdown.py
     if template_type == 'base':
         """This works for any base model"""
-#         prefix = f"""Answer the given question. \
-# You must conduct reasoning inside <think> and </think> first every time you get new information. \
-# After reasoning, if you find you lack some knowledge, you can call a search engine by <search> query </search> and it will return the top searched results between <information> and </information>. \
-# You can search as many times as your want. \
-# If you find no further external knowledge needed, you can directly provide the answer inside <answer> and </answer>, without detailed illustrations. For example, <answer> Beijing </answer>. Question: {question}\n"""
-
+        prefix = f"""Answer the given question. \
+You must conduct reasoning inside <think> and </think> first every time you get new information. \
+After reasoning, if you find you lack some knowledge, you can call a search engine by <search> query </search> and it will return the top searched results between <information> and </information>. \
+You can search as many times as your want. \
+If you find no further external knowledge needed, you can directly provide the answer inside <answer> and </answer>, without detailed illustrations. For example, <answer> Beijing </answer>. Question: {question}\n"""
+    elif template_type == 'dynamic':
         prefix = f"""Answer the given question. \
     You must conduct reasoning inside <think> and </think> first every time you get new information. \
     After reasoning, if you find you lack some knowledge, you can call a search engine by <search topk=N> query </search> and it will return the top-N searched results between <information> and </information>. Please always specify the topk value, which is an integer between 1 and 10. \
@@ -99,8 +99,8 @@ if __name__ == '__main__':
     local_dir = args.local_dir
     hdfs_dir = args.hdfs_dir
 
-    train_dataset.to_parquet(os.path.join(local_dir, 'train.parquet'))
-    test_dataset.to_parquet(os.path.join(local_dir, 'test.parquet'))
+    train_dataset.to_parquet(os.path.join(local_dir, f'train_{args.template_type}.parquet'))
+    test_dataset.to_parquet(os.path.join(local_dir, f'test_{args.template_type}.parquet'))
 
     if hdfs_dir is not None:
         makedirs(hdfs_dir)
