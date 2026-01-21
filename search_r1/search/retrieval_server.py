@@ -58,6 +58,14 @@ def pooling(
         return last_hidden_state[:, 0]
     elif pooling_method == "pooler":
         return pooler_output
+    elif pooling_method == "last":
+        left_padding = (attention_mask[:, -1].sum() == attention_mask.shape[0])
+        if left_padding:
+            return last_hidden_state[:, -1]
+        else:
+            sequence_lengths = attention_mask.sum(dim=1) - 1
+            batch_size = last_hidden_state.shape[0]
+            return last_hidden_state[torch.arange(batch_size, device=last_hidden_state.device), sequence_lengths]
     else:
         raise NotImplementedError("Pooling method not implemented!")
 
@@ -370,6 +378,7 @@ if __name__ == "__main__":
     parser.add_argument("--retriever_name", type=str, default="e5", help="Name of the retriever model.")
     parser.add_argument("--retriever_model", type=str, default="intfloat/e5-base-v2", help="Path of the retriever model.")
     parser.add_argument('--faiss_gpu', action='store_true', help='Use GPU for computation')
+    parser.add_argument('--pooling_method', type=str, default="mean", help="Pooling method for the retriever.")
 
     args = parser.parse_args()
     
@@ -382,7 +391,7 @@ if __name__ == "__main__":
         retrieval_topk=args.topk,
         faiss_gpu=args.faiss_gpu,
         retrieval_model_path=args.retriever_model,
-        retrieval_pooling_method="mean",
+        retrieval_pooling_method=args.pooling_method,
         retrieval_query_max_length=256,
         retrieval_use_fp16=True,
         retrieval_batch_size=512,
