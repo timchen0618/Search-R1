@@ -106,12 +106,11 @@ def main(config):
     if not ray.is_initialized():
         # # this is for local ray cluster
         # # ray.init(runtime_env={'env_vars': {'TOKENIZERS_PARALLELISM': 'true', 'NCCL_DEBUG': 'WARN'}})
-        # import os
+        import os
         # os.environ['TOKENIZERS_PARALLELISM'] = 'true'
         # os.environ['NCCL_DEBUG'] = 'WARN'
         # ray.init(address="auto")
         
-        import os
         # --- FIX: Standard Env Vars ---
         os.environ['TOKENIZERS_PARALLELISM'] = 'true'
         os.environ['NCCL_DEBUG'] = 'WARN'
@@ -119,7 +118,8 @@ def main(config):
         # --- FIX: Start Local Ray Instance ---
         # We REMOVE address="auto" so the script starts its own instance.
         # We disable the dashboard to save ports/resources on the cluster.
-        ray.init()
+        ray.init(num_cpus=8,
+    num_gpus=2)
         
 
     ray.get(main_task.remote(config))

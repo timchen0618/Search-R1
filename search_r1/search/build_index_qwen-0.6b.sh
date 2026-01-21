@@ -37,4 +37,3 @@ CUDA_VISIBLE_DEVICES=0 python search_r1/search/index_builder.py \
     --pooling_method last \
     --faiss_type Flat \
     --save_embedding \
-    --embedding_path /scratch/hc3337/qampari_searchr1/emb_qwen3-0.6b.memmap
