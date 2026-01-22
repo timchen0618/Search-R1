@@ -104,6 +104,7 @@ def _passages2string(retrieval_result):
         text = "\n".join(content.split("\n")[1:])
         format_reference += f"Doc {idx+1}(Title: {title}) {text}\n"
         output_dicts.append({
+            "id": doc_item['document']['id'],
             "title": title,
             "text": text
         })
