@@ -1,7 +1,7 @@
 corpus_file=/scratch/hc3337/qampari_searchr1/qampari_corpus.jsonl # jsonl
 save_dir=/scratch/hc3337/qampari_searchr1/
-retriever_name="contriever" # this is for indexing naming
-retriever_model="facebook/contriever-msmarco"
+retriever_name="contriever_finetuned" # this is for indexing naming
+retriever_model="/scratch/hc3337/models/iterative_retrieval/contriever-finetuned/"
 
 # change faiss_type to HNSW32/64/128 for ANN indexing
 # change retriever_name to bm25 for BM25 indexing
