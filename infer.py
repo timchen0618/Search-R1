@@ -1,5 +1,6 @@
 import transformers
 import torch
+from tqdm import tqdm
 import random
 from datasets import load_dataset
 import requests
@@ -126,7 +127,7 @@ def main(args):
 
 
     # Inference Loop
-    for question in questions:
+    for question in tqdm(questions):
         question = question.strip()
         if question[-1] != '?':
             question += '?'
@@ -185,9 +186,9 @@ def main(args):
             if tmp_query:
                 # print(f'searching "{tmp_query}"...')
                 search_results = search(tmp_query, args.topk)
-                for search_result in search_results:
-                    print("--------------------------------")
-                    print(search_result)
+                # for search_result in search_results:
+                    # print("--------------------------------")
+                    # print(search_result)
                 search_results_text, search_results_dicts = _passages2string(search_results)
                 
                 for search_result_dict in search_results_dicts:
@@ -208,8 +209,8 @@ def main(args):
         append_to_jsonl(args.output_file, output_dict)
 
         # Print full trajectory with <search> ... </search> and <information> ... </information> tags
-        print('\n\n################# [Full Trajectory] ##################\n')
-        print(output_dict["trajectory"])
+        # print('\n\n################# [Full Trajectory] ##################\n')
+        # print(output_dict["trajectory"])
         
         
 if __name__ == "__main__":
