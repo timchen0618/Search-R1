@@ -1,9 +1,18 @@
 file_path=/scratch/hc3337/qampari_searchr1
-retriever=$1
-index_file=$file_path/${retriever}_Flat.index
+retriever_name=$1
+index_file=$file_path/${retriever_name}_Flat.index
 corpus_file=$file_path/qampari_corpus.jsonl
-retriever_name=contriever
-retriever_path=facebook/contriever-msmarco
+
+if [ "$retriever_name" == "contriever" ]; then
+    retriever_path="facebook/contriever-msmarco"
+elif [ "$retriever_name" == "infly" ]; then
+    retriever_path="infly/inf-retriever-v1-1.5b"
+elif [ "$retriever_name" == "qwen3-0.6b" ]; then
+    retriever_path="Qwen/Qwen3-Embedding-0.6B"
+else
+    echo "Invalid retriever name"
+    exit 1
+fi
 
 python search_r1/search/retrieval_server.py --index_path $index_file \
                                             --corpus_path $corpus_file \
