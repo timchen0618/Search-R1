@@ -1,10 +1,11 @@
+#export CUDA_VISIBLE_DEVICES=0,1,2,3,4,5,6,7
 export CUDA_VISIBLE_DEVICES=0,1
 export DATA_DIR='data/nq_search'
 
 WAND_PROJECT='Search-R1'
 
 export BASE_MODEL='meta-llama/Llama-3.2-3B'
-export EXPERIMENT_NAME=nq-search-r1-ppo-llama3.2-3b-em
+export EXPERIMENT_NAME=nq-search-r1-ppo-llama3.2-3b-em_base_topk3_obs2048
 # export BASE_MODEL='meta-llama/Llama-3.2-3B-Instruct'
 # export EXPERIMENT_NAME=nq-search-r1-ppo-llama3.2-3b-it-em
 # export BASE_MODEL='meta-llama/Llama-3.1-8B'
@@ -27,8 +28,8 @@ export VLLM_ATTENTION_BACKEND=XFORMERS # vllm + qwen2-7b with flash_attn has som
 # max_prompt_length = (config['training']['max_start_length'] + config['training']['max_response_length'] * (config['training']['max_turns'] - 1) + config['training']['max_obs_length'] * config['training']['max_turns'])
 
 PYTHONUNBUFFERED=1 python3 -m verl.trainer.main_ppo \
-    data.train_files=$DATA_DIR/train.parquet \
-    data.val_files=$DATA_DIR/test.parquet \
+    data.train_files=$DATA_DIR/train_base.parquet \
+    data.val_files=$DATA_DIR/test_base.parquet \
     data.train_data_num=null \
     data.val_data_num=null \
     data.train_batch_size=512 \
