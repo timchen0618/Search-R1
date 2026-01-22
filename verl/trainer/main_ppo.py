@@ -118,8 +118,7 @@ def main(config):
         # --- FIX: Start Local Ray Instance ---
         # We REMOVE address="auto" so the script starts its own instance.
         # We disable the dashboard to save ports/resources on the cluster.
-        ray.init(num_cpus=8,
-    num_gpus=2)
+        ray.init()
         
 
     ray.get(main_task.remote(config))
