@@ -467,7 +467,7 @@ If I want to give the final answer, I should put the answer between <answer> and
             search results which is concatenated into a string
         """
         if len(queries) == 0 or (queries is None):
-            return ['']
+            return [''], 0, 0
         
         query_texts, topks = zip(*queries)
         percentage_not_none = sum([1 for topk in topks if topk is not None]) / len(topks)
