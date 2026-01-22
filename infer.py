@@ -215,7 +215,7 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument("--topk", type=int, default=3)
     parser.add_argument("--model_id", type=str, default="PeterJinGo/SearchR1-nq_hotpotqa_train-qwen2.5-7b-em-ppo")
-    parser.add_argument("--output_file", "-o" type=str, default="output.jsonl")
+    parser.add_argument("--output_file", "-o", type=str, default="output.jsonl")
     parser.add_argument("--template_type", type=str, default="base", choices=["base", "dynamic"])
     parser.add_argument("--data_path", type=str, default="/scratch/hc3337/projects/diverse_response/data/dev_data_qampari_corpus.jsonl")
     args = parser.parse_args()
