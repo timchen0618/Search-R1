@@ -464,7 +464,7 @@ If I want to give the final answer, I should put the answer between <answer> and
         return actions, contents, topks
 
     def batch_search(self, queries: List[tuple[str, int]] = None) -> str:
-        """, (len())
+        """
         Batchified search for queries.
         Args:
             queries: queries to call the search engine
