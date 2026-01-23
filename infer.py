@@ -128,7 +128,7 @@ def main(args):
         questions = [item['question'] for item in dataset['test']]
     else:
         raw_data = read_jsonl(args.data_path)
-        questions = [item['org_q'] for item in raw_data]
+        questions = [item['question_text'] for item in raw_data]
 
 
     # Inference Loop
