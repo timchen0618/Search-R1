@@ -17,6 +17,8 @@ else
     exit 1
 fi
 
+echo "Retriever name: $retriever_name"
+echo "Pooling method: $pooling_method"
 python search_r1/search/retrieval_server.py --index_path $index_file \
                                             --corpus_path $corpus_file \
                                             --topk 3 \
