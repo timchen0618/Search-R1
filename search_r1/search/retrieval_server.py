@@ -115,7 +115,7 @@ class Encoder:
             query_emb = output.last_hidden_state[:, 0, :]
         else:
             output = self.model(**inputs, return_dict=True)
-            query_emb = pooling(output.pooler_output,
+            query_emb = pooling(output.pooler_output if self.pooling_method == "pooler" else None, 
                                 output.last_hidden_state,
                                 inputs['attention_mask'],
                                 self.pooling_method)

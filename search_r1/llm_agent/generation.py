@@ -383,8 +383,13 @@ If I want to give the final answer, I should put the answer between <answer> and
         
         search_queries = [(content, topk) for action, content, topk in zip(cur_actions, contents, topks) if action == 'search']
         if do_search:
+            if len(search_queries) == 0 or (search_queries is None):
+                print("NNNNNNNNNN")
+                print("cur_actions:", cur_actions)
+                print("contents:", contents)
+                print("topks:", topks)
             search_results, average_topk, percentage_not_none = self.batch_search(search_queries)
-            assert len(search_results) == sum([1 for action in cur_actions if action == 'search'])
+            assert len(search_results) == sum([1 for action in cur_actions if action == 'search']), (len(search_results), sum([1 for action in cur_actions if action == 'search']))
         else:
             search_results = [''] * sum([1 for action in cur_actions if action == 'search'])
             average_topk, percentage_not_none = 0, 0
@@ -459,7 +464,7 @@ If I want to give the final answer, I should put the answer between <answer> and
         return actions, contents, topks
 
     def batch_search(self, queries: List[tuple[str, int]] = None) -> str:
-        """
+        """, (len())
         Batchified search for queries.
         Args:
             queries: queries to call the search engine
@@ -467,7 +472,7 @@ If I want to give the final answer, I should put the answer between <answer> and
             search results which is concatenated into a string
         """
         if len(queries) == 0 or (queries is None):
-            return [''], 0, 0
+            return [], 0, 0
         
         query_texts, topks = zip(*queries)
         percentage_not_none = sum([1 for topk in topks if topk is not None]) / len(topks)
