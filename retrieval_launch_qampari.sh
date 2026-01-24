@@ -12,6 +12,15 @@ elif [ "$retriever_name" == "infly" ]; then
 elif [ "$retriever_name" == "qwen3-0.6b" ]; then
     retriever_path="Qwen/Qwen3-Embedding-0.6B"
     pooling_method="last"
+elif [ "$retriever_name" == "contriever_finetuned" ]; then
+    retriever_path="/scratch/hc3337/models/iterative_retrieval/contriever-finetuned/"
+    pooling_method="mean"
+elif [ "$retriever_name" == "infly_finetuned" ]; then
+    retriever_path="/scratch/hc3337/models/iterative_retrieval/infly-finetuned/"
+    pooling_method="last"
+elif [ "$retriever_name" == "qwen3-0.6b_finetuned" ]; then
+    retriever_path="/scratch/hc3337/models/iterative_retrieval/qwen3-finetuned/"
+    pooling_method="last"
 else
     echo "Invalid retriever name"
     exit 1
