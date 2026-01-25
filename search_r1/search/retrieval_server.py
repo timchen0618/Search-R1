@@ -37,12 +37,18 @@ def load_docs(corpus, doc_idxs):
 
 def load_model(model_path: str, use_fp16: bool = False):
     model_config = AutoConfig.from_pretrained(model_path, trust_remote_code=True)
-    model = AutoModel.from_pretrained(model_path, trust_remote_code=True)
+    if 'iterative_retrieval' in model_path:
+        model = AutoModel.from_pretrained(model_path)
+    else:
+        model = AutoModel.from_pretrained(model_path, trust_remote_code=True)
     model.eval()
     model.cuda()
     if use_fp16: 
         model = model.half()
-    tokenizer = AutoTokenizer.from_pretrained(model_path, use_fast=True, trust_remote_code=True)
+    if 'iterative_retrieval' in model_path:
+        tokenizer = AutoTokenizer.from_pretrained(model_path, use_fast=True)
+    else:
+        tokenizer = AutoTokenizer.from_pretrained(model_path, use_fast=True, trust_remote_code=True)
     return model, tokenizer
 
 def pooling(
