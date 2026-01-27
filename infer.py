@@ -112,6 +112,8 @@ def _passages2string(retrieval_result):
     return format_reference, output_dicts
 
 def main(args):
+    import time
+    start_time = time.time()
     # Model ID and device setup
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     curr_eos = [151645, 151643] # for Qwen2.5 series models
@@ -218,7 +220,9 @@ def main(args):
         # print('\n\n################# [Full Trajectory] ##################\n')
         # print(output_dict["trajectory"])
         
-        
+    end_time = time.time()
+    print(f"Time taken: {end_time - start_time} seconds")
+    
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument("--topk", type=int, default=3)
