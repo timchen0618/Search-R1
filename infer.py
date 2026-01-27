@@ -112,8 +112,12 @@ def _passages2string(retrieval_result):
     return format_reference, output_dicts
 
 def main(args):
+    # Time tracking
     import time
     start_time = time.time()
+    total_retrieval_time = 0.0
+    total_inference_time = 0.0    
+    
     # Model ID and device setup
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     curr_eos = [151645, 151643] # for Qwen2.5 series models
@@ -135,6 +139,7 @@ def main(args):
 
     # Inference Loop
     for q_idx, question in enumerate(tqdm(questions)):
+        start_question_time = time.time()
         question = question.strip()
         if question[-1] != '?':
             question += '?'
@@ -153,12 +158,15 @@ def main(args):
         if tokenizer.chat_template:
             prompt = tokenizer.apply_chat_template([{"role": "user", "content": prompt}], add_generation_prompt=True, tokenize=False)
 
+        end_question_time = time.time()
+        total_inference_time += (end_question_time - start_question_time)
+        
+        
         # print('\n\n################# [Start Reasoning + Searching] ##################\n\n')
         # print(prompt)
-
-
         # Encode the chat-formatted prompt and move it to the correct device
         while True:
+            start_inference_time = time.time()
             input_ids = tokenizer.encode(prompt, return_tensors='pt').to(device)
             attention_mask = torch.ones_like(input_ids)
             
@@ -181,9 +189,11 @@ def main(args):
 
             generated_tokens = outputs[0][input_ids.shape[1]:]
             output_text = tokenizer.decode(generated_tokens, skip_special_tokens=True)
+            end_inference_time = time.time()
+            total_inference_time += (end_inference_time - start_inference_time)
             
+            start_retrieval_time = time.time()
             tmp_query = get_query(tokenizer.decode(outputs[0], skip_special_tokens=True))
-            
             # if eos token is reached, break.
             # But before break, we need to add the last query to the output. Also collect the search results.
             if outputs[0][-1].item() in curr_eos:
@@ -204,7 +214,9 @@ def main(args):
                         search_results_per_question.append(search_result_dict)
             else:
                 search_results_text = ''
-
+            end_retrieval_time = time.time()
+            total_retrieval_time += (end_retrieval_time - start_retrieval_time)
+            
             search_text = curr_search_template.format(output_text=output_text, search_results=search_results_text)
             prompt += search_text
             cnt += 1
@@ -222,6 +234,8 @@ def main(args):
         
     end_time = time.time()
     print(f"Time taken: {end_time - start_time} seconds")
+    print(f"Total retrieval time: {total_retrieval_time} seconds")
+    print(f"Total inference time: {total_inference_time} seconds")
     
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
