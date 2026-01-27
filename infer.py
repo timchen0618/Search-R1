@@ -114,9 +114,7 @@ def _passages2string(retrieval_result):
 def main(args):
     # Time tracking
     import time
-    start_time = time.time()
-    total_retrieval_time = 0.0
-    total_inference_time = 0.0    
+      
     
     # Model ID and device setup
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
@@ -139,6 +137,9 @@ def main(args):
 
     # Inference Loop
     for q_idx, question in enumerate(tqdm(questions)):
+        total_retrieval_time = 0.0
+        total_inference_time = 0.0  
+    
         start_question_time = time.time()
         question = question.strip()
         if question[-1] != '?':
@@ -226,16 +227,14 @@ def main(args):
         output_dict["trajectory"] = prompt + "\n\n" + output_text
         output_dict["search_results"] = search_results_per_question
         output_dict["query_id"] = q_idx
+        output_dict["total_retrieval_time"] = total_retrieval_time
+        output_dict["total_inference_time"] = total_inference_time
         append_to_jsonl(args.output_file, output_dict)
 
         # Print full trajectory with <search> ... </search> and <information> ... </information> tags
         # print('\n\n################# [Full Trajectory] ##################\n')
         # print(output_dict["trajectory"])
         
-    end_time = time.time()
-    print(f"Time taken: {end_time - start_time} seconds")
-    print(f"Total retrieval time: {total_retrieval_time} seconds")
-    print(f"Total inference time: {total_inference_time} seconds")
     
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
