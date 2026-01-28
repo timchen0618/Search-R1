@@ -24,7 +24,9 @@ def main():
     parser.add_argument('--input_file', type=str, default='output_infly.jsonl')
     args = parser.parse_args()
 
-    data = read_jsonl(args.input_file)
+    data = read_jsonl(args.input_file)[:200]
+    
+    print(f"Computing inference time for {len(data)} questions")
     try:
         total_inference_time, total_retrieval_time = compute_inference_time(data)
         print(f"Total inference time: {total_inference_time} seconds")
