@@ -135,6 +135,7 @@ def main(args):
         questions = [item['question_text'] for item in raw_data]
         if os.path.exists(args.output_file):
             questions = questions[len(read_jsonl(args.output_file)):]
+            print(f"Skipping {len(read_jsonl(args.output_file))} questions")
         else:
             questions = questions
 
