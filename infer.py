@@ -6,7 +6,7 @@ from datasets import load_dataset
 import requests
 import json
 import argparse
-
+import os
 
 
 
@@ -133,6 +133,10 @@ def main(args):
     else:
         raw_data = read_jsonl(args.data_path)
         questions = [item['question_text'] for item in raw_data]
+        if os.path.exists(args.output_file):
+            questions = questions[len(read_jsonl(args.output_file)):]
+        else:
+            questions = questions
 
 
     # Inference Loop
