@@ -42,6 +42,8 @@ def main():
         print(f"Average number of calls: {number_of_calls}")
     except:
         print(f"Error computing number of calls for {args.input_file}")
+        
+    print(data[0]['trajectory'])
 
 if __name__ == '__main__':
     main()
