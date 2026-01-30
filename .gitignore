@@ -4,6 +4,8 @@
 **/_build/
 **/*.ckpt
 **/outputs
+**/outputs_quest
+**/outputs_qampari
 **/*.tar.gz
 **/playground
 **/wandb
