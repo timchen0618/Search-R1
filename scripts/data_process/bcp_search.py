@@ -12,7 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 """
-Preprocess the QA dataset to parquet format
+Preprocess the browsecomp_plus dataset to parquet format
 """
 
 import re
@@ -23,6 +23,7 @@ from verl.utils.hdfs_io import copy, makedirs
 import argparse
 
 
+    
 def make_prefix(dp, template_type):
     question = dp['question']
 
@@ -47,63 +48,62 @@ If you find no further external knowledge needed, you can directly provide the a
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
-    parser.add_argument('--local_dir', default='./data/nq_search')
+    parser.add_argument('--local_dir', default='./data/bcp_search')
     parser.add_argument('--hdfs_dir', default=None)
     parser.add_argument('--template_type', type=str, default='base')
-    parser.add_argument('--data_sources', default='nq')
 
     args = parser.parse_args()
 
-    # data_source = 'nq'
-    data_sources = args.data_sources.split(',')
-    all_dataset = []
+    data_source = 'browsecomp_plus'
 
-    for data_source in data_sources:
+    dataset = datasets.load_dataset("json", data_files="/scratch/hc3337/projects/BrowseComp-Plus/data/browsecomp_plus_decrypted.jsonl")['train']
 
-        dataset = datasets.load_dataset('RUC-NLPIR/FlashRAG_datasets', data_source)
+    full_dataset = dataset.train_test_split(test_size=0.2)
+    train_dataset = full_dataset['train']
+    test_dataset = full_dataset['test']
+    
+    # test_dataset = dataset['test']
 
-        train_dataset = dataset['train']
+    # add a row to each data item that represents a unique id
+    def make_map_fn(split):
 
-        # add a row to each data item that represents a unique id
-        def make_map_fn(split):
+        def process_fn(example, idx):
+            example['question'] = example['query'].strip()
+            if example['question'][-1] != '?':
+                example['question'] += '?'
+            question = make_prefix(example, template_type=args.template_type)
+            solution = {
+                "target": example['answer'],
+            }
 
-            def process_fn(example, idx):
-                example['question'] = example['question'].strip()
-                if example['question'][-1] != '?':
-                    example['question'] += '?'
-                question = make_prefix(example, template_type=args.template_type)
-                solution = {
-                    "target": example['golden_answers'],
+            data = {
+                "data_source": data_source,
+                "prompt": [{
+                    "role": "user",
+                    "content": question,
+                }],
+                "ability": "fact-reasoning",
+                "reward_model": {
+                    "style": "rule",
+                    "ground_truth": solution
+                },
+                "extra_info": {
+                    'split': split,
+                    'index': idx,
                 }
+            }
+            return data
 
-                data = {
-                    "data_source": data_source,
-                    "prompt": [{
-                        "role": "user",
-                        "content": question,
-                    }],
-                    "ability": "fact-reasoning",
-                    "reward_model": {
-                        "style": "rule",
-                        "ground_truth": solution
-                    },
-                    "extra_info": {
-                        'split': split,
-                        'index': idx,
-                    }
-                }
-                return data
+        return process_fn
 
-            return process_fn
-
-        train_dataset = train_dataset.map(function=make_map_fn('train'), with_indices=True)
-        all_dataset.append(train_dataset)
+    train_dataset = train_dataset.map(function=make_map_fn('train'), with_indices=True)
+    test_dataset = test_dataset.map(function=make_map_fn('test'), with_indices=True)
 
     local_dir = args.local_dir
     hdfs_dir = args.hdfs_dir
 
-    all_train_dataset = datasets.concatenate_datasets(all_dataset)
-    all_train_dataset.to_parquet(os.path.join(local_dir, f'train_{args.template_type}.parquet'))
+    train_dataset.to_parquet(os.path.join(local_dir, f'train_{args.template_type}.parquet'))
+    test_dataset.to_parquet(os.path.join(local_dir, f'test_{args.template_type}.parquet'))
 
     if hdfs_dir is not None:
         makedirs(hdfs_dir)

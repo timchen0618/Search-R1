@@ -34,6 +34,12 @@ You must conduct reasoning inside <think> and </think> first every time you get 
 After reasoning, if you find you lack some knowledge, you can call a search engine by <search> query </search> and it will return the top searched results between <information> and </information>. \
 You can search as many times as your want. \
 If you find no further external knowledge needed, you can directly provide the answer inside <answer> and </answer>, without detailed illustrations. For example, <answer> Beijing </answer>. Question: {question}\n"""
+    elif template_type == 'dynamic':
+        prefix = f"""Answer the given question. \
+    You must conduct reasoning inside <think> and </think> first every time you get new information. \
+    After reasoning, if you find you lack some knowledge, you can call a search engine by <search topk=N> query </search> and it will return the top-N searched results between <information> and </information>. Please always specify the topk value, which is an integer between 1 and 10. \
+    You can search as many times as your want. \
+    If you find one answer from the documents, you can directly provide the answer inside <answer> and </answer>, without detailed illustrations. For example, <answer> Beijing </answer>. Question: {question}\n"""
     else:
         raise NotImplementedError
     return prefix
@@ -107,7 +113,7 @@ if __name__ == '__main__':
     hdfs_dir = args.hdfs_dir
 
     all_test_dataset = datasets.concatenate_datasets(all_dataset)
-    all_test_dataset.to_parquet(os.path.join(local_dir, 'test.parquet'))
+    all_test_dataset.to_parquet(os.path.join(local_dir, f'test_{args.template_type}.parquet'))
 
     if hdfs_dir is not None:
         makedirs(hdfs_dir)

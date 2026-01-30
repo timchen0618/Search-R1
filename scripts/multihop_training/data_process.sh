@@ -3,19 +3,24 @@ LOCAL_DIR=$WORK_DIR/data/multihop_training
 
 ## process multiple dataset search format train file
 DATA=hotpotqa,2wikimultihopqa,musique
-python $WORK_DIR/scripts/data_process/qa_search_train_merge.py --local_dir $LOCAL_DIR --data_sources $DATA
+python $WORK_DIR/scripts/data_process/qa_search_train_merge.py --local_dir $LOCAL_DIR --data_sources $DATA --template_type dynamic
+python $WORK_DIR/scripts/data_process/qa_search_train_merge.py --local_dir $LOCAL_DIR --data_sources $DATA --template_type base
+
 
 ## process multiple dataset search format test file
 DATA=hotpotqa,2wikimultihopqa,musique,bamboogle
-python $WORK_DIR/scripts/data_process/qa_search_test_merge.py --local_dir $LOCAL_DIR --data_sources $DATA
+python $WORK_DIR/scripts/data_process/qa_search_test_merge.py --local_dir $LOCAL_DIR --data_sources $DATA --template_type dynamic
+python $WORK_DIR/scripts/data_process/qa_search_test_merge.py --local_dir $LOCAL_DIR --data_sources $DATA --template_type base
 
 
 
 LOCAL_DIR=$WORK_DIR/data/musique_training
 ## process multiple dataset search format train file
 DATA=musique
-python $WORK_DIR/scripts/data_process/qa_search_train_merge.py --local_dir $LOCAL_DIR --data_sources $DATA
+python $WORK_DIR/scripts/data_process/qa_search_train_merge.py --local_dir $LOCAL_DIR --data_sources $DATA --template_type dynamic
+python $WORK_DIR/scripts/data_process/qa_search_train_merge.py --local_dir $LOCAL_DIR --data_sources $DATA --template_type base
 
 ## process multiple dataset search format test file
 DATA=hotpotqa,2wikimultihopqa,musique,bamboogle
-python $WORK_DIR/scripts/data_process/qa_search_test_merge.py --local_dir $LOCAL_DIR --data_sources $DATA
+python $WORK_DIR/scripts/data_process/qa_search_test_merge.py --local_dir $LOCAL_DIR --data_sources $DATA --template_type dynamic
+python $WORK_DIR/scripts/data_process/qa_search_test_merge.py --local_dir $LOCAL_DIR --data_sources $DATA --template_type base
