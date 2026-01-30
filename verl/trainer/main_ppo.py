@@ -23,9 +23,11 @@ import re
 import numpy as np
 
 def _select_rm_score_fn(data_source):
-    if data_source in ['nq', 'triviaqa', 'popqa', 'hotpotqa', '2wikimultihopqa', 'musique', 'bamboogle']:
+    if data_source in ['nq', 'triviaqa', 'popqa', 'hotpotqa', '2wikimultihopqa', 'musique', 'bamboogle', 'browsecomp_plus']:
         return qa_em.compute_score_em
     else:
+        print(f"[DEBUG] NotImplementedError: {data_source}")
+        print(f"[DEBUG] data_source: {data_source} is not implemented")
         raise NotImplementedError
 
 
