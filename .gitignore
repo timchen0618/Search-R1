@@ -6,6 +6,7 @@
 **/outputs
 **/outputs_quest
 **/outputs_qampari
+**/sbatch_outputs
 **/*.tar.gz
 **/playground
 **/wandb
