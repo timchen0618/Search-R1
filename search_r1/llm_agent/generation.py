@@ -319,8 +319,8 @@ class LLMGenerationManager:
         meta_info['active_mask'] = active_mask.tolist()
         meta_info['valid_action_stats'] = valid_action_stats.tolist()
         meta_info['valid_search_stats'] = valid_search_stats.tolist()
-        meta_info['average_topks'] = sum(average_topks) / len(average_topks)
-        meta_info['percentage_not_nones'] = sum(percentage_not_nones) / len(percentage_not_nones)
+        meta_info['average_topks'] = 0.0 if len(average_topks) == 0 else sum(average_topks) / len(average_topks)
+        meta_info['percentage_not_nones'] = 0.0 if len(percentage_not_nones) == 0 else sum(percentage_not_nones) / len(percentage_not_nones)
         print("ACTIVE_TRAJ_NUM:", active_num_list)
         
         return self._compose_final_output(original_left_side, original_right_side, meta_info)
