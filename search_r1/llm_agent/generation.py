@@ -392,7 +392,16 @@ If I want to give the final answer, I should put the answer between <answer> and
         search_queries = [(content, topk) for action, content, topk in zip(cur_actions, contents, topks) if action == 'search']
         
         # record the topk with search action, other actions are 0
-        topks = [int(topk) if action == 'search' else 0 for action, topk in zip(cur_actions, topks)]
+        topks = []
+        for action, topk in zip(cur_actions, topks):
+            if action == 'search':
+                if topk is None:
+                    topks.append(0)
+                else:
+                    topks.append(int(topk))
+            else:
+                topks.append(0)
+        # topks = [int(topk) if action == 'search' else 0 ]
         if do_search:
             if len(search_queries) == 0 or (search_queries is None):
                 print("NNNNNNNNNN")
