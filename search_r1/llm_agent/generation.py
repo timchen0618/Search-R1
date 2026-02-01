@@ -266,7 +266,9 @@ class LLMGenerationManager:
             valid_action_stats += torch.tensor(valid_action, dtype=torch.int)
             valid_search_stats += torch.tensor(is_search, dtype=torch.int)
             average_topks.extend([topk for (topk, _is_search) in zip(cur_topks, is_search) if _is_search])
+            print("num_searches_across_turns:", num_searches_across_turns, "added:", torch.tensor([1 if _is_search else 0 for _is_search in is_search], dtype=torch.int))
             num_searches_across_turns += torch.tensor([1 if _is_search else 0 for _is_search in is_search], dtype=torch.int)
+            print("topks_across_turns:", topks_across_turns, "added:", torch.tensor(cur_topks, dtype=torch.int))
             topks_across_turns += torch.tensor(cur_topks, dtype=torch.int)
             
             percentage_not_nones.extend(cur_percentage_not_nones)
@@ -392,22 +394,22 @@ If I want to give the final answer, I should put the answer between <answer> and
         search_queries = [(content, topk) for action, content, topk in zip(cur_actions, contents, topks) if action == 'search']
         
         # record the topk with search action, other actions are 0
-        topks = []
+        number_topks = []
         for action, topk in zip(cur_actions, topks):
             if action == 'search':
                 if topk is None:
-                    topks.append(0)
+                    number_topks.append(0)
                 else:
-                    topks.append(int(topk))
+                    number_topks.append(int(topk))
             else:
-                topks.append(0)
+                number_topks.append(0)
         # topks = [int(topk) if action == 'search' else 0 ]
         if do_search:
             if len(search_queries) == 0 or (search_queries is None):
                 print("NNNNNNNNNN")
                 print("cur_actions:", cur_actions)
                 print("contents:", contents)
-                print("topks:", topks)
+                print("number_topks:", number_topks)
             search_results, percentage_not_nones = self.batch_search(search_queries)
             assert len(search_results) == sum([1 for action in cur_actions if action == 'search']), (len(search_results), sum([1 for action in cur_actions if action == 'search']))
         else:
@@ -440,7 +442,7 @@ If I want to give the final answer, I should put the answer between <answer> and
             
         assert len(search_results) == 0
             
-        return next_obs, dones, valid_action, is_search, topks, percentage_not_nones
+        return next_obs, dones, valid_action, is_search, number_topks, percentage_not_nones
 
     def postprocess_predictions(self, predictions: List[Any]) -> Tuple[List[int], List[bool]]:
         """
