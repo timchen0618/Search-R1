@@ -491,29 +491,34 @@ If I want to give the final answer, I should put the answer between <answer> and
             search results which is concatenated into a string
         """
         if len(queries) == 0 or (queries is None):
-            return [], 0
+            return [], []
         
         query_texts, topks = zip(*queries)
         percentage_not_nones = [1 if topk is not None else 0 for topk in topks]
         # compute average topk, None counts as 0
         # average_topk = sum([int(topk) if topk is not None else 0 for topk in topks]) / len(topks)
         
-        results = self._batch_search(query_texts, topks)['result']
+        
+        rrr = self._batch_search(query_texts, topks)
+        print('-----------=============================-------------------------')
+        print(rrr)
+        results = rrr['result']
         
         return [self._passages2string(result) for result in results], percentage_not_nones
 
     def _batch_search(self, query_texts, topks):
         if self.config.dynamic_topk:
             print('topks:', topks)
-            topks = [min(int(topk), 10) if topk is not None else self.config.topk for topk in topks]
+            topks = [min(int(topk), 10) if topk is not None else int(self.config.topk) for topk in topks]
         else:
-            topks = [self.config.topk] * len(query_texts)
+            topks = [int(self.config.topk)] * len(query_texts)
         
         payload = {
             "queries": query_texts,
             "topk": topks,
             "return_scores": True
         }
+        print('payload:', payload)
         
         return requests.post(self.config.search_url, json=payload).json()
 
