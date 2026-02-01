@@ -286,7 +286,6 @@ class LLMGenerationManager:
                 responses_ids,
                 next_obs_ids
             )
-            num_turns += 1
             
         # final LLM rollout
         if active_mask.sum():
