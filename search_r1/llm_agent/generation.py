@@ -266,9 +266,9 @@ class LLMGenerationManager:
             valid_action_stats += torch.tensor(valid_action, dtype=torch.int)
             valid_search_stats += torch.tensor(is_search, dtype=torch.int)
             average_topks.extend([topk for (topk, _is_search) in zip(cur_topks, is_search) if _is_search])
-            print("num_searches_across_turns:", num_searches_across_turns, "added:", torch.tensor([1 if _is_search else 0 for _is_search in is_search], dtype=torch.int))
+            # print("num_searches_across_turns:", num_searches_across_turns, "added:", torch.tensor([1 if _is_search else 0 for _is_search in is_search], dtype=torch.int))
             num_searches_across_turns += torch.tensor([1 if _is_search else 0 for _is_search in is_search], dtype=torch.int)
-            print("topks_across_turns:", topks_across_turns, "added:", torch.tensor(cur_topks, dtype=torch.int))
+            # print("topks_across_turns:", topks_across_turns, "added:", torch.tensor(cur_topks, dtype=torch.int))
             topks_across_turns += torch.tensor(cur_topks, dtype=torch.int)
             
             percentage_not_nones.extend(cur_percentage_not_nones)
