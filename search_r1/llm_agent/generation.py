@@ -231,7 +231,9 @@ class LLMGenerationManager:
         active_num_list = [active_mask.sum().item()]
         average_topks = []
         percentage_not_nones = []
+        topks_across_turns = torch.zeros(gen_batch.batch['input_ids'].shape[0], dtype=torch.int)
         rollings = gen_batch
+        num_searches_across_turns = torch.zeros(gen_batch.batch['input_ids'].shape[0], dtype=torch.int)
 
         # Main generation loop
         for step in range(self.config.max_turns):
@@ -253,7 +255,7 @@ class LLMGenerationManager:
             responses_ids, responses_str = self.tensor_fn._example_level_pad(responses_ids, responses_str, active_mask)
 
             # Execute in environment and process observations
-            next_obs, dones, valid_action, is_search, cur_average_topks, cur_percentage_not_nones = self.execute_predictions(
+            next_obs, dones, valid_action, is_search, cur_topks, cur_percentage_not_nones = self.execute_predictions(
                 responses_str, self.tokenizer.pad_token, active_mask
             )
             
@@ -263,7 +265,10 @@ class LLMGenerationManager:
             turns_stats[curr_active_mask] += 1
             valid_action_stats += torch.tensor(valid_action, dtype=torch.int)
             valid_search_stats += torch.tensor(is_search, dtype=torch.int)
-            average_topks.extend(cur_average_topks)
+            average_topks.extend([topk for (topk, _is_search) in zip(cur_topks, is_search) if _is_search])
+            num_searches_across_turns += torch.tensor([1 if _is_search else 0 for _is_search in is_search], dtype=torch.int)
+            topks_across_turns += torch.tensor(cur_topks, dtype=torch.int)
+            
             percentage_not_nones.extend(cur_percentage_not_nones)
 
             next_obs_ids = self._process_next_obs(next_obs)
@@ -279,6 +284,7 @@ class LLMGenerationManager:
                 responses_ids,
                 next_obs_ids
             )
+            num_turns += 1
             
         # final LLM rollout
         if active_mask.sum():
@@ -298,7 +304,7 @@ class LLMGenerationManager:
             responses_ids, responses_str = self.tensor_fn._example_level_pad(responses_ids, responses_str, active_mask)
 
             # # Execute in environment and process observations
-            _, dones, valid_action, is_search, cur_average_topks, cur_percentage_not_nones = self.execute_predictions(
+            _, dones, valid_action, is_search, cur_topks, cur_percentage_not_nones = self.execute_predictions(
                 responses_str, self.tokenizer.pad_token, active_mask, do_search=False
             )
 
@@ -307,7 +313,7 @@ class LLMGenerationManager:
             active_num_list.append(active_mask.sum().item())
             valid_action_stats += torch.tensor(valid_action, dtype=torch.int)
             valid_search_stats += torch.tensor(is_search, dtype=torch.int)
-            average_topks.extend(cur_average_topks)
+            average_topks.extend([topk for (topk, _is_search) in zip(cur_topks, is_search) if _is_search])
             percentage_not_nones.extend(cur_percentage_not_nones)
 
             original_right_side = self._update_right_side(
@@ -315,6 +321,8 @@ class LLMGenerationManager:
                 responses_ids,
             )
         
+        average_topks_across_turns = topks_across_turns / (num_searches_across_turns + 1e-8)  # = size of batch 
+        meta_info['average_topks_across_turns'] = average_topks_across_turns.tolist()
         meta_info['turns_stats'] = turns_stats.tolist()
         meta_info['active_mask'] = active_mask.tolist()
         meta_info['valid_action_stats'] = valid_action_stats.tolist()
@@ -357,7 +365,7 @@ class LLMGenerationManager:
         
         return final_output
 
-    def execute_predictions(self, predictions: List[str], pad_token: str, active_mask=None, do_search=True) -> List[str]:
+    def execute_predictions(self, predictions: List[str], pad_token: str, active_mask=None, do_search=True):
         """
         Execute predictions across multiple environments.
         NOTE: the function is the actual `step` function in the environment
@@ -379,20 +387,23 @@ If I want to search, I should put the query between <search> and </search>. \
 If I want to give the final answer, I should put the answer between <answer> and </answer>. Let me try again.\n'
         
         cur_actions, contents, topks = self.postprocess_predictions(predictions)
-        next_obs, dones, valid_action, is_search, average_topks, percentage_not_nones = [], [], [], [], [], []
+        next_obs, dones, valid_action, is_search = [], [], [], []
         
         search_queries = [(content, topk) for action, content, topk in zip(cur_actions, contents, topks) if action == 'search']
+        
+        # record the topk with search action, other actions are 0
+        topks = [int(topk) if action == 'search' else 0 for action, topk in zip(cur_actions, topks)]
         if do_search:
             if len(search_queries) == 0 or (search_queries is None):
                 print("NNNNNNNNNN")
                 print("cur_actions:", cur_actions)
                 print("contents:", contents)
                 print("topks:", topks)
-            search_results, average_topk, percentage_not_none = self.batch_search(search_queries)
+            search_results, percentage_not_nones = self.batch_search(search_queries)
             assert len(search_results) == sum([1 for action in cur_actions if action == 'search']), (len(search_results), sum([1 for action in cur_actions if action == 'search']))
         else:
             search_results = [''] * sum([1 for action in cur_actions if action == 'search'])
-            average_topk, percentage_not_none = 0, 0
+            percentage_not_nones = []
 
         for i, (action, active) in enumerate(zip(cur_actions, active_mask)):
             
@@ -412,8 +423,6 @@ If I want to give the final answer, I should put the answer between <answer> and
                     dones.append(0)
                     valid_action.append(1)
                     is_search.append(1)
-                    average_topks.append(average_topk)
-                    percentage_not_nones.append(percentage_not_none)
                 else:
                     next_obs.append(dynamic_feedback if self.config.dynamic_topk else fixed_k_feedback)
                     dones.append(0)
@@ -422,7 +431,7 @@ If I want to give the final answer, I should put the answer between <answer> and
             
         assert len(search_results) == 0
             
-        return next_obs, dones, valid_action, is_search, average_topks, percentage_not_nones
+        return next_obs, dones, valid_action, is_search, topks, percentage_not_nones
 
     def postprocess_predictions(self, predictions: List[Any]) -> Tuple[List[int], List[bool]]:
         """
@@ -463,7 +472,7 @@ If I want to give the final answer, I should put the answer between <answer> and
             
         return actions, contents, topks
 
-    def batch_search(self, queries: List[tuple[str, int]] = None) -> str:
+    def batch_search(self, queries: List[tuple[str, int]] = None) -> Tuple[List[str], float]:
         """
         Batchified search for queries.
         Args:
@@ -472,16 +481,16 @@ If I want to give the final answer, I should put the answer between <answer> and
             search results which is concatenated into a string
         """
         if len(queries) == 0 or (queries is None):
-            return [], 0, 0
+            return [], 0
         
         query_texts, topks = zip(*queries)
-        percentage_not_none = sum([1 for topk in topks if topk is not None]) / len(topks)
+        percentage_not_nones = [1 if topk is not None else 0 for topk in topks]
         # compute average topk, None counts as 0
-        average_topk = sum([int(topk) if topk is not None else 0 for topk in topks]) / len(topks)
+        # average_topk = sum([int(topk) if topk is not None else 0 for topk in topks]) / len(topks)
         
         results = self._batch_search(query_texts, topks)['result']
         
-        return [self._passages2string(result) for result in results], average_topk, percentage_not_none
+        return [self._passages2string(result) for result in results], percentage_not_nones
 
     def _batch_search(self, query_texts, topks):
         if self.config.dynamic_topk:

@@ -35,11 +35,12 @@ class RewardManager():
     """The reward manager.
     """
 
-    def __init__(self, tokenizer, num_examine, format_score=0.) -> None:
+    def __init__(self, tokenizer, num_examine, format_score=0., retrieval_topk_penalty=0.) -> None:
         self.tokenizer = tokenizer
         self.num_examine = num_examine  # the number of batches of decoded responses to print to the console
         self.format_score = format_score
-
+        self.retrieval_topk_penalty = retrieval_topk_penalty
+        
     def __call__(self, data: DataProto):
         """We will expand this function gradually based on the available datasets"""
 
@@ -52,6 +53,7 @@ class RewardManager():
         # all_scores = []
 
         already_print_data_sources = {}
+        average_topks_across_turns = data.meta_info['average_topks_across_turns']
 
         for i in range(len(data)):
             data_item = data[i]  # DataProtoItem
@@ -78,6 +80,8 @@ class RewardManager():
             compute_score_fn = _select_rm_score_fn(data_source)
 
             score = compute_score_fn(solution_str=sequences_str, ground_truth=ground_truth, format_score=self.format_score)
+            if self.retrieval_topk_penalty > 0:
+                score -= self.retrieval_topk_penalty * average_topks_across_turns[i]
 
             reward_tensor[i, valid_response_length - 1] = score
             # all_scores.append(score)
@@ -196,10 +200,10 @@ def main_task(config):
         role_worker_mapping[Role.RewardModel] = ray.remote(RewardModelWorker)
         mapping[Role.RewardModel] = global_pool_id
 
-    reward_fn = RewardManager(tokenizer=tokenizer, num_examine=0)
+    reward_fn = RewardManager(tokenizer=tokenizer, num_examine=0, retrieval_topk_penalty=config.reward_model.retrieval_topk_penalty)
 
     # Note that we always use function-based RM for validation
-    val_reward_fn = RewardManager(tokenizer=tokenizer, num_examine=1)
+    val_reward_fn = RewardManager(tokenizer=tokenizer, num_examine=1, retrieval_topk_penalty=config.reward_model.retrieval_topk_penalty)
 
     resource_pool_manager = ResourcePoolManager(resource_pool_spec=resource_pool_spec, mapping=mapping)
     trainer = RayPPOTrainer(config=config,
