@@ -497,10 +497,12 @@ If I want to give the final answer, I should put the answer between <answer> and
         percentage_not_nones = [1 if topk is not None else 0 for topk in topks]
         # compute average topk, None counts as 0
         # average_topk = sum([int(topk) if topk is not None else 0 for topk in topks]) / len(topks)
-        
-        results = self._batch_search(query_texts, topks)['result']
-        
-        return [self._passages2string(result) for result in results], percentage_not_nones
+        try:
+            results = self._batch_search(query_texts, topks)['result']
+            return [self._passages2string(result) for result in results], percentage_not_nones
+        except Exception as e:
+            print(f"Error in batch_search: {e}")
+            return [], percentage_not_nones
 
     def _batch_search(self, query_texts, topks):
         if self.config.dynamic_topk:
