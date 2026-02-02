@@ -226,6 +226,8 @@ def main(args):
             search_text = curr_search_template.format(output_text=output_text, search_results=search_results_text)
             prompt += search_text
             cnt += 1
+            if cnt > 10:
+                break
             # print(search_text)
 
             
