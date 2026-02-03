@@ -126,10 +126,13 @@ def main(args):
     model = transformers.AutoModelForCausalLM.from_pretrained(args.model_id, torch_dtype=torch.bfloat16, device_map="auto")
 
     # Get Data
-    if args.data_path == 'nq':
+    if args.data_path in ['nq', 'musique', 'hotpotqa', '2wikimultihopqa', 'bamboogle']:
         from datasets import load_dataset
-        dataset = load_dataset('RUC-NLPIR/FlashRAG_datasets', 'nq')
-        questions = [item['question'] for item in dataset['test']]
+        dataset = load_dataset('RUC-NLPIR/FlashRAG_datasets', args.data_path)
+        if 'test' in dataset:
+            questions = [item['question'] for item in dataset['test']]
+        else:
+            questions = [item['question'] for item in dataset['dev']]
     else:
         raw_data = read_jsonl(args.data_path)
         questions = [item['question_text'] for item in raw_data]
