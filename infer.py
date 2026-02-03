@@ -88,28 +88,44 @@ class StopOnSequence(transformers.StoppingCriteria):
 #         return None
     
     
+# def get_query(text):
+#     import re
+    
+#     pattern = r'<(?P<action>search|answer)(?:\s+topk=(?P<topk>\d+))?>(?P<content>.*?)</(?P=action)>'
+#     # pattern = r'<(search|answer)>(.*?)</\1>'
+#     match = re.search(pattern, text, re.DOTALL)
+#     # if match:
+#     #     content = match.group(2).strip()  # Return only the content inside the tags
+#     #     action = match.group(1)
+#     if match:
+#         content = match.group('content').strip()
+#         action = match.group('action')
+#         topk = match.group('topk')
+#     else:
+#         content = ''
+#         action = None
+#         topk = None
+        
+#     print(f'TEXT: {text}, action: {action}, topk: {topk}, content: {content}')
+#     if action == 'search':
+#         try:
+#             topk = int(topk)
+#         except:
+#             topk = None 
+#         return content, topk
+#     else:
+#         return None, None
+
 def get_query(text):
     import re
-    pattern = r'<(?P<action>search|answer)(?:\s+topk=(?P<topk>\d+))?>(?P<content>.*?)</(?P=action)>'
-    # pattern = r'<(search|answer)>(.*?)</\1>'
-    match = re.search(pattern, text, re.DOTALL)
-    # if match:
-    #     content = match.group(2).strip()  # Return only the content inside the tags
-    #     action = match.group(1)
-    if match:
-        content = match.group('content').strip()
-        action = match.group('action')
-        topk = match.group('topk')
-    else:
-        content = ''
-        action = None
-        topk = None
-    if action == 'search':
-        try:
-            topk = int(topk)
-        except:
-            topk = None 
-        return content, topk
+    
+    pattern = r'<(?P<action>search)(?:\s+topk=(?P<topk>\d+))?>(?P<content>.*?)</(?P=action)>'
+
+    matches = re.findall(pattern, text, re.DOTALL)
+    if matches:
+        match = matches[-1]
+        print(f'MATCH: {match} | length: {len(matches)}')
+        return match[2].strip(), int(match[1])
     else:
         return None, None
 
@@ -141,6 +157,7 @@ def main(args):
     # Time tracking
     import time
       
+    print("URL: ", f"http://127.0.0.1:{args.port}/retrieve")
     
     # Model ID and device setup
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")

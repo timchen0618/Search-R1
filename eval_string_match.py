@@ -3,6 +3,8 @@ import re
 from tqdm import tqdm
 from verl.utils.reward_score.qa_em import extract_solution, compute_score_em
 from datasets import load_dataset
+import argparse
+
 
 def read_jsonl(file_path):
     with open(file_path, 'r') as f:
@@ -17,17 +19,23 @@ def extract_question(trajectory):
     else:
         return ""
 
-def parse_output(file_path, ground_truths, _print=False):
+def parse_output(file_path, ground_truths, _print=False, num_examples=None):
     data = read_jsonl(file_path)
-    assert len(ground_truths) == len(data), f'Length mismatch: {len(ground_truths)} != {len(data)}'
+    # assert len(ground_truths) == len(data), f'Length mismatch: {len(ground_truths)} != {len(data)}'\
+    if len(ground_truths) != len(data):
+        print(f'[Warning] Length mismatch: {len(ground_truths)} != {len(data)}')
+        
     num_search_queries = []
     answers = []
     scores = []
+    if num_examples is not None:
+        data = data[:num_examples]
     for idx, item in enumerate(tqdm(data)):
         trajectory = item['trajectory']
         # print(trajectory)
         # Extract all <search>...</search> tags
-        search_pattern = re.compile(r'<search>(.*?)</search>', re.DOTALL)
+        # pattern = r'<(?P<action>search)(?:\s+topk=(?P<topk>\d+))?>(?P<content>.*?)</(?P=action)>'
+        search_pattern = re.compile(r'<search>(.*?)</search>|<(?P<action>search)(?:\s+topk=(?P<topk>\d+))?>(?P<content>.*?)</(?P=action)>', re.DOTALL)
         search_matches = search_pattern.findall(trajectory)
         
         if _print:
@@ -37,7 +45,12 @@ def parse_output(file_path, ground_truths, _print=False):
         
         if search_matches:
             for i, search_query in enumerate(search_matches, 1):
-                if search_query.strip() == 'query':
+                if isinstance(search_query, tuple):
+                    search_query = search_query[2].strip()
+                elif isinstance(search_query, str):
+                    search_query = search_query.strip()
+                
+                if search_query == 'query':
                     continue
                 
                 if _print:
@@ -75,7 +88,7 @@ def parse_output(file_path, ground_truths, _print=False):
             print(f'Instance scores: {inst_scores}')
         
     print(f'Number of search queries: {sum(num_search_queries) / len(num_search_queries)}')
-    print(f'Average score: {sum(scores) / len(scores)}')
+    print(f'Average score: {100*sum(scores) / len(scores)}')
     
 
 
@@ -94,6 +107,12 @@ def extract_data(data_path):
 
 
 if __name__ == '__main__':
-    ground_truths = extract_data('nq')
-    
-    parse_output('output_base_topk3_obs2048_bsz16.jsonl', ground_truths)
+    parser = argparse.ArgumentParser()
+    parser.add_argument('--data_path', '-d', type=str, default='nq')
+    parser.add_argument('--output_path', '-o', type=str, default='output_base_topk3_obs2048_bsz16.jsonl')
+    parser.add_argument('--print', action='store_true')
+    parser.add_argument('--num_examples', '-n', type=int, default=None)
+    args = parser.parse_args()
+
+    ground_truths = extract_data(args.data_path)
+    parse_output(args.output_path, ground_truths, args.print, args.num_examples)
