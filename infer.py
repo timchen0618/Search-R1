@@ -87,13 +87,13 @@ def get_query(text):
     else:
         return None
 
-def search(query: str, topk: int):
+def search(query: str, topk: int, port: int):
     payload = {
             "queries": [query],
             "topk": [topk],
             "return_scores": True
         }
-    results = requests.post("http://127.0.0.1:8000/retrieve", json=payload).json()['result']
+    results = requests.post(f"http://127.0.0.1:{port}/retrieve", json=payload).json()['result']
     return results[0]
 
 def _passages2string(retrieval_result):
@@ -208,7 +208,7 @@ def main(args):
 
             if tmp_query:
                 # print(f'searching "{tmp_query}"...')
-                search_results = search(tmp_query, args.topk)
+                search_results = search(tmp_query, args.topk, args.port)
                 # for search_result in search_results:
                     # print("--------------------------------")
                     # print(search_result)
@@ -250,5 +250,6 @@ if __name__ == "__main__":
     parser.add_argument("--output_file", "-o", type=str, default="output.jsonl")
     parser.add_argument("--template_type", type=str, default="base", choices=["base", "dynamic"])
     parser.add_argument("--data_path", type=str, default="/scratch/hc3337/projects/diverse_response/data/qampari_data/dev_data_gt_qampari_corpus.jsonl")
+    parser.add_argument("--port", type=int, default=8000)
     args = parser.parse_args()
     main(args)
