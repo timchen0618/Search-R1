@@ -1,38 +1,27 @@
-export CUDA_VISIBLE_DEVICES=0,1,2,3,4,5,6,7
-export data_name='musique'
-export DATA_DIR='data/${data_name}'
-export N_GPUS=8
+export CUDA_VISIBLE_DEVICES=0,1
+export DATA_DIR='data/bcp_search'
 
 WAND_PROJECT='Search-R1'
 
-export MAX_TURN=8
-export epoch=15
-export BASE_MODEL='Qwen/Qwen2.5-3B-Instruct'
-export MAX_STEPS=1005
-export TOPK=3
-
-# export BASE_MODEL='meta-llama/Llama-3.2-3B'
-export EXPERIMENT_NAME=musique-ppo-qwen2.5-3b-instruct-em_base_topk${TOPK}_maxturns${MAX_TURN}
-
+export BASE_MODEL='meta-llama/Llama-3.2-3B'
+export EXPERIMENT_NAME=nq-search-r1-ppo-llama3.2-3b-em_dynamic_topk_obs2048_bsz16_bcp
 
 # set -x
 export VLLM_ATTENTION_BACKEND=XFORMERS # vllm + qwen2-7b with flash_attn has some issues
 
 # max_prompt_length = (config['training']['max_start_length'] + config['training']['max_response_length'] * (config['training']['max_turns'] - 1) + config['training']['max_obs_length'] * config['training']['max_turns'])
 
-port=$1
-retriever_url="http://127.0.0.1:$port/retrieve"
 PYTHONUNBUFFERED=1 python3 -m verl.trainer.main_ppo \
-    data.train_files=$DATA_DIR/train_base.parquet \
-    data.val_files=$DATA_DIR/test_base.parquet \
+    data.train_files=$DATA_DIR/train_dynamic.parquet \
+    data.val_files=$DATA_DIR/test_dynamic.parquet \
     data.train_data_num=null \
     data.val_data_num=null \
-    data.train_batch_size=512 \
-    data.val_batch_size=256 \
-    data.max_prompt_length=8192 \
-    data.max_response_length=1024 \
+    data.train_batch_size=64 \
+    data.val_batch_size=32 \
+    data.max_prompt_length=4096 \
+    data.max_response_length=500 \
     data.max_start_length=2048 \
-    data.max_obs_length=1024 \
+    data.max_obs_length=2048 \
     data.shuffle_train_dataloader=True \
     algorithm.adv_estimator=gae \
     actor_rollout_ref.model.path=$BASE_MODEL \
@@ -40,16 +29,16 @@ PYTHONUNBUFFERED=1 python3 -m verl.trainer.main_ppo \
     actor_rollout_ref.model.enable_gradient_checkpointing=true \
     actor_rollout_ref.model.use_remove_padding=True \
     actor_rollout_ref.actor.optim.lr_warmup_steps_ratio=0.285 \
-    actor_rollout_ref.actor.ppo_mini_batch_size=64 \
+    actor_rollout_ref.actor.ppo_mini_batch_size=256 \
     actor_rollout_ref.actor.ppo_micro_batch_size=16 \
     actor_rollout_ref.actor.fsdp_config.param_offload=false \
     actor_rollout_ref.actor.fsdp_config.grad_offload=false \
     actor_rollout_ref.actor.fsdp_config.optimizer_offload=false \
-    actor_rollout_ref.rollout.log_prob_micro_batch_size=32 \
+    actor_rollout_ref.rollout.log_prob_micro_batch_size=16 \
     actor_rollout_ref.rollout.tensor_model_parallel_size=1 \
     actor_rollout_ref.rollout.name=vllm \
-    actor_rollout_ref.rollout.gpu_memory_utilization=0.6 \
-    actor_rollout_ref.ref.log_prob_micro_batch_size=32 \
+    actor_rollout_ref.rollout.gpu_memory_utilization=0.5 \
+    actor_rollout_ref.ref.log_prob_micro_batch_size=16 \
     actor_rollout_ref.ref.fsdp_config.param_offload=True \
     actor_rollout_ref.rollout.n_agent=1 \
     actor_rollout_ref.rollout.temperature=1 \
@@ -70,17 +59,18 @@ PYTHONUNBUFFERED=1 python3 -m verl.trainer.main_ppo \
     +trainer.val_only=false \
     +trainer.val_before_train=true \
     trainer.default_hdfs_dir=null \
-    trainer.n_gpus_per_node=$N_GPUS \
+    trainer.n_gpus_per_node=2 \
     trainer.nnodes=1 \
-    trainer.save_freq=50 \
+    trainer.save_freq=100 \
     trainer.test_freq=50 \
     trainer.project_name=$WAND_PROJECT \
     trainer.experiment_name=$EXPERIMENT_NAME \
-    trainer.total_epochs=$epoch \
-    trainer.total_training_steps=$MAX_STEPS \
+    trainer.total_epochs=15 \
+    trainer.total_training_steps=1005 \
     trainer.default_hdfs_dir=null \
     trainer.default_local_dir=verl_checkpoints/$EXPERIMENT_NAME \
-    max_turns=$MAX_TURN \
-    retriever.url=$retriever_url \
-    retriever.topk=$TOPK \
+    max_turns=2 \
+    retriever.url="http://127.0.0.1:8000/retrieve" \
+    retriever.topk=1 \
+    retriever.dynamic_topk=true \
     2>&1 | tee $EXPERIMENT_NAME.log
