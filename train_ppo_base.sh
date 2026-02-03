@@ -1,6 +1,6 @@
 export CUDA_VISIBLE_DEVICES=0,1,2,3,4,5,6,7
 export data_name='musique'
-export DATA_DIR='data/${data_name}'
+export DATA_DIR=data/${data_name}
 export N_GPUS=8
 
 WAND_PROJECT='Search-R1'
