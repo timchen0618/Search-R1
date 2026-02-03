@@ -78,14 +78,40 @@ class StopOnSequence(transformers.StoppingCriteria):
 
         return False
 
+# def get_query(text):
+#     import re
+#     pattern = re.compile(r"<search>(.*?)</search>", re.DOTALL)
+#     matches = pattern.findall(text)
+#     if matches:
+#         return matches[-1]
+#     else:
+#         return None
+    
+    
 def get_query(text):
     import re
-    pattern = re.compile(r"<search>(.*?)</search>", re.DOTALL)
-    matches = pattern.findall(text)
-    if matches:
-        return matches[-1]
+    pattern = r'<(?P<action>search|answer)(?:\s+topk=(?P<topk>\d+))?>(?P<content>.*?)</(?P=action)>'
+    # pattern = r'<(search|answer)>(.*?)</\1>'
+    match = re.search(pattern, text, re.DOTALL)
+    # if match:
+    #     content = match.group(2).strip()  # Return only the content inside the tags
+    #     action = match.group(1)
+    if match:
+        content = match.group('content').strip()
+        action = match.group('action')
+        topk = match.group('topk')
     else:
-        return None
+        content = ''
+        action = None
+        topk = None
+    if action == 'search':
+        try:
+            topk = int(topk)
+        except:
+            topk = None 
+        return content, topk
+    else:
+        return None, None
 
 def search(query: str, topk: int, port: int):
     payload = {
@@ -202,7 +228,10 @@ def main(args):
             total_inference_time += (end_inference_time - start_inference_time)
             
             start_retrieval_time = time.time()
-            tmp_query = get_query(tokenizer.decode(outputs[0], skip_special_tokens=True))
+            tmp_query, tmp_topk = get_query(tokenizer.decode(outputs[0], skip_special_tokens=True))
+            print('--------------------------------')
+            print(f"tmp_query: {tmp_query}, tmp_topk: {tmp_topk}")
+            print('--------------------------------')
             # if eos token is reached, break.
             # But before break, we need to add the last query to the output. Also collect the search results.
             if outputs[0][-1].item() in curr_eos:
@@ -211,7 +240,8 @@ def main(args):
 
             if tmp_query:
                 # print(f'searching "{tmp_query}"...')
-                search_results = search(tmp_query, args.topk, args.port)
+                top_k = tmp_topk if tmp_topk is not None else args.topk
+                search_results = search(tmp_query, top_k, args.port)
                 # for search_result in search_results:
                     # print("--------------------------------")
                     # print(search_result)
