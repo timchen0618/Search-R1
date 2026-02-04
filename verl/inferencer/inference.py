@@ -100,7 +100,7 @@ import ray
 import hydra
 
 
-@hydra.main(config_path='config', config_name='ppo_trainer', version_base=None)
+@hydra.main(config_path='config', config_name='rollout_only', version_base=None)
 def main(config):
     if not ray.is_initialized():
         import os
@@ -161,12 +161,6 @@ def main_task(config):
         Role.ActorRollout: global_pool_id,
     }
 
-    # we should adopt a multi-source reward function here
-    # - for rule-based rm, we directly call a reward score
-    # - for model-based rm, we call a model
-    # - for code related prompt, we send to a sandbox if there are test cases
-    # - finally, we combine all the rewards together
-    # - The reward type depends on the tag of the data
     if config.reward_model.enable:
         if config.reward_model.strategy == 'fsdp':
             from verl.workers.fsdp_workers import RewardModelWorker
