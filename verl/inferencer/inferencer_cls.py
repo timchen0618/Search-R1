@@ -84,40 +84,6 @@ class ResourcePoolManager:
         return self.resource_pool_dict[self.mapping[role]]
 
 
-import torch
-from verl.utils.torch_functional import masked_mean
-
-
-def apply_kl_penalty(data: DataProto, kl_ctrl: core_algos.AdaptiveKLController, kl_penalty='kl'):
-    responses = data.batch['responses']
-    response_length = responses.size(1)
-    token_level_scores = data.batch['token_level_scores']
-    batch_size = data.batch.batch_size[0]
-    attention_mask = data.batch['info_mask'] if 'info_mask' in data.batch else data.batch['attention_mask']
-    response_mask = attention_mask[:, -response_length:]
-
-    # compute kl between ref_policy and current policy
-    if 'ref_log_prob' in data.batch.keys():
-        kld = core_algos.kl_penalty(data.batch['old_log_probs'], data.batch['ref_log_prob'],
-                                    kl_penalty=kl_penalty)  # (batch_size, response_length)
-        kld = kld * response_mask
-        beta = kl_ctrl.value
-    else:
-        beta = 0
-        kld = torch.zeros_like(response_mask, dtype=torch.float32)
-
-    token_level_rewards = token_level_scores - beta * kld
-
-    current_kl = masked_mean(kld, mask=response_mask, axis=-1)  # average over sequence
-    current_kl = torch.mean(current_kl, dim=0).item()
-
-    # according to https://github.com/huggingface/trl/blob/951ca1841f29114b969b57b26c7d3e80a39f75a0/trl/trainer/ppo_trainer.py#L837
-    kl_ctrl.update(current_kl=current_kl, n_steps=batch_size)
-    data.batch['token_level_rewards'] = token_level_rewards
-
-    metrics = {'critic/kl': current_kl, 'critic/kl_coeff': beta}
-
-    return data, metrics
 
 
 def compute_advantage(data: DataProto, adv_estimator, gamma=1.0, lam=1.0, num_repeat=1):
@@ -195,14 +161,12 @@ class Inferencer(object):
                  role_worker_mapping: dict[Role, WorkerType],
                  resource_pool_manager: ResourcePoolManager,
                  ray_worker_group_cls: RayWorkerGroup = RayWorkerGroup,
-                 reward_fn=None,
                  val_reward_fn=None):
 
         # assert torch.cuda.is_available(), 'cuda must be available on driver'
 
         self.tokenizer = tokenizer
         self.config = config
-        self.reward_fn = reward_fn
         self.val_reward_fn = val_reward_fn
 
         self.hybrid_engine = config.actor_rollout_ref.hybrid_engine
@@ -302,39 +266,40 @@ class Inferencer(object):
             is_validation = True,
         )
 
-        if not self.config.do_search:
-            for test_data in self.val_dataloader:
-                test_batch = DataProto.from_single_dict(test_data)
+        # if not self.config.do_search:
+        #     for test_data in self.val_dataloader:
+        #         test_batch = DataProto.from_single_dict(test_data)
 
-                # we only do validation on rule-based rm
-                if self.config.reward_model.enable and test_batch[0].non_tensor_batch['reward_model']['style'] == 'model':
-                    return {}
+        #         # we only do validation on rule-based rm
+        #         if self.config.reward_model.enable and test_batch[0].non_tensor_batch['reward_model']['style'] == 'model':
+        #             return {}
 
-                test_gen_batch = test_batch.pop(['input_ids', 'attention_mask', 'position_ids'])
-                test_gen_batch.meta_info = {
-                    'eos_token_id': self.tokenizer.eos_token_id,
-                    'pad_token_id': self.tokenizer.pad_token_id,
-                    'recompute_log_prob': False,
-                    'do_sample': False,
-                    'validate': True,
-                }
+        #         test_gen_batch = test_batch.pop(['input_ids', 'attention_mask', 'position_ids'])
+        #         test_gen_batch.meta_info = {
+        #             'eos_token_id': self.tokenizer.eos_token_id,
+        #             'pad_token_id': self.tokenizer.pad_token_id,
+        #             'recompute_log_prob': False,
+        #             'do_sample': False,
+        #             'validate': True,
+        #         }
 
-                # pad to be divisible by dp_size
-                test_gen_batch_padded, pad_size = pad_dataproto_to_divisor(test_gen_batch, self.actor_rollout_wg.world_size)
-                test_output_gen_batch_padded = self.actor_rollout_wg.generate_sequences(test_gen_batch_padded)
-                # unpad
-                test_output_gen_batch = unpad_dataproto(test_output_gen_batch_padded, pad_size=pad_size)
-                print('validation generation end')
+        #         # pad to be divisible by dp_size
+        #         test_gen_batch_padded, pad_size = pad_dataproto_to_divisor(test_gen_batch, self.actor_rollout_wg.world_size)
+        #         test_output_gen_batch_padded = self.actor_rollout_wg.generate_sequences(test_gen_batch_padded)
+        #         # unpad
+        #         test_output_gen_batch = unpad_dataproto(test_output_gen_batch_padded, pad_size=pad_size)
+        #         print('validation generation end')
 
-                test_batch = test_batch.union(test_output_gen_batch)
+        #         test_batch = test_batch.union(test_output_gen_batch)
 
-                # evaluate using reward_function
-                # for certain reward function (e.g. sandbox), the generation can overlap with reward
-                reward_tensor = self.val_reward_fn(test_batch)
+        #         # evaluate using reward_function
+        #         # for certain reward function (e.g. sandbox), the generation can overlap with reward
+        #         reward_tensor = self.val_reward_fn(test_batch)
 
-                reward_tensor_lst.append(reward_tensor)
-                data_source_lst.append(test_batch.non_tensor_batch.get('data_source', ['unknown'] * reward_tensor.shape[0]))
-        else:
+        #         reward_tensor_lst.append(reward_tensor)
+        #         data_source_lst.append(test_batch.non_tensor_batch.get('data_source', ['unknown'] * reward_tensor.shape[0]))
+        # else:
+        if True:  # ignore the case of not doing search
             for batch_dict in self.val_dataloader:
                 timing_raw = {}
                 test_batch: DataProto = DataProto.from_single_dict(batch_dict)
@@ -403,17 +368,17 @@ class Inferencer(object):
         else:
             raise NotImplementedError
 
-        # create critic
-        if self.config.algorithm.adv_estimator == 'gae':
-            resource_pool = self.resource_pool_manager.get_resource_pool(Role.Critic)
-            critic_cls = RayClassWithInitArgs(cls=self.role_worker_mapping[Role.Critic], config=self.config.critic)
-            self.resource_pool_to_cls[resource_pool]['critic'] = critic_cls
-            self.use_critic = True
+        # # create critic
+        # if self.config.algorithm.adv_estimator == 'gae':
+        #     resource_pool = self.resource_pool_manager.get_resource_pool(Role.Critic)
+        #     critic_cls = RayClassWithInitArgs(cls=self.role_worker_mapping[Role.Critic], config=self.config.critic)
+        #     self.resource_pool_to_cls[resource_pool]['critic'] = critic_cls
+        #     self.use_critic = True
             
-        elif self.config.algorithm.adv_estimator == 'grpo':
-            self.use_critic = False
-        else:
-            raise NotImplementedError
+        # elif self.config.algorithm.adv_estimator == 'grpo':
+        #     self.use_critic = False
+        # else:
+        #     raise NotImplementedError
 
         # create reference policy if needed
         if self.use_reference_policy:
@@ -443,14 +408,6 @@ class Inferencer(object):
             all_wg.update(spawn_wg)
             # keep the referece of WorkerDict to support ray >= 2.31. Ref: https://github.com/ray-project/ray/pull/45699
             self.wg_dicts.append(wg_dict)
-
-        if self.use_critic:
-            self.critic_wg = all_wg['critic']
-            self.critic_wg.init_model()
-
-        if self.use_reference_policy:
-            self.ref_policy_wg = all_wg['ref']
-            self.ref_policy_wg.init_model()
 
         if self.use_rm:
             self.rm_wg = all_wg['rm']

@@ -92,13 +92,6 @@ class RewardManager():
             if already_print_data_sources[data_source] < self.num_examine:
                 already_print_data_sources[data_source] += 1
                 print(sequences_str)
-        
-        # print(f"[DEBUG] all_scores: {all_scores}")
-        # print(f"[DEBUG] all_scores shape: {np.array(all_scores).shape}")
-        # print(f"[DEBUG] all_scores mean: {np.mean(all_scores)}")
-        # print(f"[DEBUG] all_scores max: {np.max(all_scores)}")
-        # print(f"[DEBUG] all_scores min: {np.min(all_scores)}")
-        # print(f"[DEBUG] all_scores std: {np.std(all_scores)}")
 
         return reward_tensor
 
@@ -142,14 +135,12 @@ def main_task(config):
 
     # define worker classes
     if config.actor_rollout_ref.actor.strategy == 'fsdp':
-        assert config.actor_rollout_ref.actor.strategy == config.critic.strategy
-        from verl.workers.fsdp_workers import ActorRolloutRefWorker, CriticWorker
+        from verl.workers.fsdp_workers import ActorRolloutRefWorker
         from verl.single_controller.ray import RayWorkerGroup
         ray_worker_group_cls = RayWorkerGroup
 
     elif config.actor_rollout_ref.actor.strategy == 'megatron':
-        assert config.actor_rollout_ref.actor.strategy == config.critic.strategy
-        from verl.workers.megatron_workers import ActorRolloutRefWorker, CriticWorker
+        from verl.workers.megatron_workers import ActorRolloutRefWorker
         from verl.single_controller.ray.megatron import NVMegatronRayWorkerGroup
         ray_worker_group_cls = NVMegatronRayWorkerGroup
 
@@ -160,8 +151,6 @@ def main_task(config):
 
     role_worker_mapping = {
         Role.ActorRollout: ray.remote(ActorRolloutRefWorker),
-        Role.Critic: ray.remote(CriticWorker),
-        Role.RefPolicy: ray.remote(ActorRolloutRefWorker),
     }
 
     global_pool_id = 'global_pool'
@@ -170,8 +159,6 @@ def main_task(config):
     }
     mapping = {
         Role.ActorRollout: global_pool_id,
-        Role.Critic: global_pool_id,
-        Role.RefPolicy: global_pool_id,
     }
 
     # we should adopt a multi-source reward function here
@@ -190,9 +177,7 @@ def main_task(config):
         role_worker_mapping[Role.RewardModel] = ray.remote(RewardModelWorker)
         mapping[Role.RewardModel] = global_pool_id
 
-    reward_fn = RewardManager(tokenizer=tokenizer, num_examine=0, retrieval_topk_penalty=config.reward_model.retrieval_topk_penalty)
-
-    # Note that we always use function-based RM for validation
+    
     val_reward_fn = RewardManager(tokenizer=tokenizer, num_examine=1, retrieval_topk_penalty=config.reward_model.retrieval_topk_penalty)
 
     resource_pool_manager = ResourcePoolManager(resource_pool_spec=resource_pool_spec, mapping=mapping)
@@ -201,7 +186,6 @@ def main_task(config):
                             role_worker_mapping=role_worker_mapping,
                             resource_pool_manager=resource_pool_manager,
                             ray_worker_group_cls=ray_worker_group_cls,
-                            reward_fn=reward_fn,
                             val_reward_fn=val_reward_fn,
                             )
     inferencer.init_workers()
