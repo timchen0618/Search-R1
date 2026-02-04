@@ -1,0 +1,43 @@
+data:
+  input_file: /path/to/partials.jsonl
+  input_key: trajectory
+  output_file: outputs/completed_rollouts.jsonl
+  batch_size: 8
+  num_completions: 8
+
+actor_rollout_ref:
+  model:
+    path: /path/to/model
+    tokenizer_path: ${actor_rollout_ref.model.path}
+    external_lib: null
+    override_config: { }
+  rollout:
+    name: vllm
+    temperature: 0.7
+    top_p: 0.95
+    top_k: -1
+    prompt_length: 7680
+    response_length: 512
+    dtype: bfloat16
+    gpu_memory_utilization: 0.9
+    enforce_eager: true
+    free_cache_engine: true
+    load_format: dummy_dtensor
+    tensor_model_parallel_size: 1
+    max_num_batched_tokens: 8192
+    max_num_seqs: 1024
+
+retriever:
+  url: "http://127.0.0.1:8000/retrieve"
+  topk: 3
+  dynamic_topk: false
+
+trainer:
+  nnodes: 1
+  n_gpus_per_node: 1
+
+max_turns: 4
+do_search: true
+stop: ["</search>", "</answer>"]
+seed: 42
+
