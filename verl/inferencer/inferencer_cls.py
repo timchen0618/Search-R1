@@ -196,14 +196,6 @@ class Inferencer(object):
             self.kl_ctrl = core_algos.FixedKLController(kl_coef=0.)
 
         self._create_dataloader()
-        self._init_logger()
-    
-    def _init_logger(self):
-        from verl.utils.tracking import Tracking
-        self.logger = Tracking(project_name=self.config.trainer.project_name,
-                          experiment_name=self.config.trainer.experiment_name,
-                          default_backend=self.config.trainer.logger,
-                          config=OmegaConf.to_container(self.config, resolve=True))
 
     def _create_dataloader(self):
         from torch.utils.data import DataLoader
