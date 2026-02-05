@@ -241,7 +241,6 @@ class LLMGenerationManager:
         percentage_not_nones = []
         # topks_across_turns = torch.zeros(gen_batch.batch['input_ids'].shape[0], dtype=torch.int)
         rollings = gen_batch
-        num_searches_across_turns = torch.zeros(gen_batch.batch['input_ids'].shape[0], dtype=torch.int)
         # record the topks across turns for each example. 
         # topks_across_turns[i] is a list of topks across turns for the i-th example
         topks_across_turns = [[] for _ in range(gen_batch.batch['input_ids'].shape[0])]
@@ -280,8 +279,6 @@ class LLMGenerationManager:
             for i, (topk, _is_search) in enumerate(zip(cur_topks, is_search)):
                 if _is_search:
                     topks_across_turns[i].append(topk)
-            # print("num_searches_across_turns:", num_searches_across_turns, "added:", torch.tensor([1 if _is_search else 0 for _is_search in is_search], dtype=torch.int))
-            num_searches_across_turns += torch.tensor([1 if _is_search else 0 for _is_search in is_search], dtype=torch.int)
             # print("topks_across_turns:", topks_across_turns, "added:", torch.tensor(cur_topks, dtype=torch.int))
             # topks_across_turns += torch.tensor(cur_topks, dtype=torch.int)
             
@@ -339,6 +336,7 @@ class LLMGenerationManager:
         average_topks_across_turns, std_topks_across_turns = zip(*[stats(topks) for topks in topks_across_turns])
         meta_info['average_topks_across_turns'] = list(average_topks_across_turns)
         meta_info['std_topks_across_turns'] = list(std_topks_across_turns)
+        meta_info['sum_topks_across_turns'] = [sum(topks) for topks in topks_across_turns]
         meta_info['turns_stats'] = turns_stats.tolist()
         meta_info['active_mask'] = active_mask.tolist()
         meta_info['valid_action_stats'] = valid_action_stats.tolist()
