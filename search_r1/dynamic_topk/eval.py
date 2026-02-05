@@ -15,18 +15,25 @@ def write_jsonl(file_path, data):
 def collect_subqueries(data):
     subqueries = []
     num_queries_per_inst = []
+    topks = []
     for item in data:
         trajectory = item['trajectory']
-        subqueries.append(trajectory)
-    return subqueries, num_queries_per_inst
+        cur_subqueries, cur_topks = _parse_search_tag(trajectory)
+        subqueries.extend(cur_subqueries)
+        topks.extend(cur_topks)
+        num_queries_per_inst.append(len(cur_subqueries))
+    return subqueries, topks, num_queries_per_inst
 
 
 def _parse_search_tag(text: str) -> Tuple[Optional[str], Optional[int]]:
     pattern = re.compile(r"<search(?:\s+topk=(\d+))?\s*>(.*?)</search>", re.DOTALL)
     matches = pattern.findall(text)
     if not matches:
+        print('No matches found')
         return [], []
 
+    subqueries = []
+    topks = []
     print('-----')
     for _match in matches:
         print(_match)
@@ -36,8 +43,8 @@ def _parse_search_tag(text: str) -> Tuple[Optional[str], Optional[int]]:
         if query == 'query':
             continue
         subqueries.append(query)
-        num_queries_per_inst.append(topk)
-    return query.strip(), topk
+        topks.append(topk)
+    return subqueries, topks
 
 
 def perform_retrieval(data, retrieval_manager, retrieval_batch_size):
@@ -51,7 +58,7 @@ def perform_retrieval(data, retrieval_manager, retrieval_batch_size):
 
 
 
-data = read_jsonl('verl_checkpoints/SearchR1-nq_hotpotqa_train-qwen2.5-7b-em-ppo_inference_musique_sm/test_outputs.jsonl')
+data = read_jsonl('verl_checkpoints/SearchR1-nq_hotpotqa_train-qwen2.5-7b-em-ppo_inference_musique_sm/test_outputs.jsonl')[:5]
 port = 8000
 TOPK = 50
 retrieval_batch_size = 512
@@ -60,7 +67,7 @@ retrieval_batch_size = 512
 
 # retrieval_manager = RetrievalManager(search_url=f'http://127.0.0.1:{port}/search', topk=TOPK)
 
-# subqueries, num_queries_per_inst = collect_subqueries(data)
+subqueries, topks, num_queries_per_inst = collect_subqueries(data)
 
 # # perform retrieval batch by batch
 # data = perform_retrieval(data, retrieval_manager, retrieval_batch_size)
