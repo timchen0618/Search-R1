@@ -17,10 +17,11 @@ class VLLMInferenceEngine:
         min_p: float = 0.0,
         presence_penalty: float = 0.0,
         seed: Optional[int] = 42,
+        gpu_memory_utilization: float = 0.9,
     ) -> None:
         self.model_name = model_name
         self.tokenizer = AutoTokenizer.from_pretrained(model_name)
-        self.llm = LLM(model=model_name)
+        self.llm = LLM(model=model_name, gpu_memory_utilization=gpu_memory_utilization)
         self.sampling_params = SamplingParams(
             max_tokens=max_tokens,
             temperature=temperature,
@@ -52,7 +53,7 @@ def run_vllm_inference() -> None:
     system_prompt = "You are a concise assistant. Answer in 2-3 sentences."
     user_prompt = "Explain what retrieval-augmented generation is."
 
-    engine = VLLMInferenceEngine(model_name=model_name)
+    engine = VLLMInferenceEngine(model_name=model_name, gpu_memory_utilization=0.7)
     prompt = engine.build_prompt(system_prompt, user_prompt)
     outputs = engine.generate([prompt])
 
