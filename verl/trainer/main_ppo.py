@@ -35,11 +35,12 @@ class RewardManager():
     """The reward manager.
     """
 
-    def __init__(self, tokenizer, num_examine, format_score=0., retrieval_topk_penalty=0.) -> None:
+    def __init__(self, tokenizer, num_examine, format_score=0., retrieval_topk_penalty=0., output_sequences=False) -> None:
         self.tokenizer = tokenizer
         self.num_examine = num_examine  # the number of batches of decoded responses to print to the console
         self.format_score = format_score
         self.retrieval_topk_penalty = retrieval_topk_penalty
+        self.output_sequences = output_sequences
         
     def __call__(self, data: DataProto):
         """We will expand this function gradually based on the available datasets"""
@@ -52,6 +53,7 @@ class RewardManager():
 
         # all_scores = []
 
+        all_output_sequences = []
         already_print_data_sources = {}
         average_topks_across_turns = data.meta_info['average_topks_across_turns']
 
@@ -92,6 +94,8 @@ class RewardManager():
             if already_print_data_sources[data_source] < self.num_examine:
                 already_print_data_sources[data_source] += 1
                 print(sequences_str)
+            if self.output_sequences:
+                all_output_sequences.append(sequences_str)
         
         # print(f"[DEBUG] all_scores: {all_scores}")
         # print(f"[DEBUG] all_scores shape: {np.array(all_scores).shape}")
@@ -100,7 +104,10 @@ class RewardManager():
         # print(f"[DEBUG] all_scores min: {np.min(all_scores)}")
         # print(f"[DEBUG] all_scores std: {np.std(all_scores)}")
 
-        return reward_tensor
+        if self.output_sequences:
+            return reward_tensor, all_output_sequences
+        else:
+            return reward_tensor
 
 
 import ray
@@ -200,10 +207,10 @@ def main_task(config):
         role_worker_mapping[Role.RewardModel] = ray.remote(RewardModelWorker)
         mapping[Role.RewardModel] = global_pool_id
 
-    reward_fn = RewardManager(tokenizer=tokenizer, num_examine=0, retrieval_topk_penalty=config.reward_model.retrieval_topk_penalty)
+    reward_fn = RewardManager(tokenizer=tokenizer, num_examine=0, retrieval_topk_penalty=config.reward_model.retrieval_topk_penalty, output_sequences=False)
 
     # Note that we always use function-based RM for validation
-    val_reward_fn = RewardManager(tokenizer=tokenizer, num_examine=1, retrieval_topk_penalty=config.reward_model.retrieval_topk_penalty)
+    val_reward_fn = RewardManager(tokenizer=tokenizer, num_examine=1, retrieval_topk_penalty=config.reward_model.retrieval_topk_penalty, output_sequences=True)
 
     resource_pool_manager = ResourcePoolManager(resource_pool_spec=resource_pool_spec, mapping=mapping)
     trainer = RayPPOTrainer(config=config,

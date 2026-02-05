@@ -446,6 +446,7 @@ class RayPPOTrainer(object):
         import torch
         reward_tensor_lst = []
         data_source_lst = []
+        all_output_sequences = []
 
         gen_config = GenerationConfig(
             max_turns=self.config.max_turns,
@@ -496,7 +497,8 @@ class RayPPOTrainer(object):
 
                 # evaluate using reward_function
                 # for certain reward function (e.g. sandbox), the generation can overlap with reward
-                reward_tensor = self.val_reward_fn(test_batch)
+                reward_tensor, output_sequences = self.val_reward_fn(test_batch)
+                all_output_sequences.extend(output_sequences)
 
                 reward_tensor_lst.append(reward_tensor)
                 data_source_lst.append(test_batch.non_tensor_batch.get('data_source', ['unknown'] * reward_tensor.shape[0]))
@@ -530,8 +532,9 @@ class RayPPOTrainer(object):
                     
                     # evaluate using reward_function
                     # for certain reward function (e.g. sandbox), the generation can overlap with reward
-                    reward_tensor = self.val_reward_fn(test_batch)
-
+                    reward_tensor, output_sequences = self.val_reward_fn(test_batch)
+                    all_output_sequences.extend(output_sequences)
+                    
                     reward_tensor_lst.append(reward_tensor)
                     data_source_lst.append(test_batch.non_tensor_batch.get('data_source', ['unknown'] * reward_tensor.shape[0]))
 
@@ -550,7 +553,7 @@ class RayPPOTrainer(object):
         for data_source, rewards in data_source_reward.items():
             metric_dict[f'val/test_score/{data_source}'] = np.mean(rewards)
 
-        return metric_dict
+        return metric_dict, all_output_sequences
 
 
     def init_workers(self):
@@ -677,10 +680,14 @@ class RayPPOTrainer(object):
         # perform validation before training
         # currently, we only support validation using the reward_function.
         if self.val_reward_fn is not None and self.config.trainer.get('val_before_train', True):
-            val_metrics = self._validate()
+            val_metrics, output_sequences = self._validate()
             pprint(f'Initial validation metrics: {val_metrics}')
             logger.log(data=val_metrics, step=self.global_steps)
             if self.config.trainer.get('val_only', False):
+                if self.config.trainer.get('save_output_sequences', False):
+                    with open(os.path.join(self.config.trainer.default_local_dir, 'test_outputs.txt'), 'w') as f:
+                        for sequence in output_sequences:
+                            f.write(sequence + '\n')
                 return
 
         # we start from step 1
@@ -841,7 +848,7 @@ class RayPPOTrainer(object):
                     if self.val_reward_fn is not None and self.config.trainer.test_freq > 0 and \
                         self.global_steps % self.config.trainer.test_freq == 0:
                         with _timer('testing', timing_raw):
-                            val_metrics: dict = self._validate()
+                            val_metrics, _ = self._validate()
                             # get average test score across data sources
                             avg_test_score = sum(val_metrics.values()) / len(val_metrics)
                             if avg_test_score > self.best_metric:
@@ -869,7 +876,7 @@ class RayPPOTrainer(object):
 
                     # perform validation after training
                     if self.val_reward_fn is not None:
-                        val_metrics = self._validate()
+                        val_metrics, _ = self._validate()
                         pprint(f'Final validation metrics: {val_metrics}')
                         logger.log(data=val_metrics, step=self.global_steps)
                     return
