@@ -1,7 +1,68 @@
 import json
+from transformers import AutoModelForCausalLM, AutoTokenizer
 from search_r1.search.retrieval_manager import RetrievalManager
-from typing import Optional, Tuple
+from typing import Optional, Tuple, List
 import re
+from vllm import LLM, SamplingParams
+
+
+class VLLMInferenceEngine:
+    def __init__(
+        self,
+        model_name: str,
+        max_tokens: int = 16384,
+        temperature: float = 0.7,
+        top_p: float = 0.8,
+        top_k: int = 20,
+        min_p: float = 0.0,
+        presence_penalty: float = 0.0,
+        seed: Optional[int] = 42,
+    ) -> None:
+        self.model_name = model_name
+        self.tokenizer = AutoTokenizer.from_pretrained(model_name)
+        self.llm = LLM(model=model_name)
+        self.sampling_params = SamplingParams(
+            max_tokens=max_tokens,
+            temperature=temperature,
+            top_p=top_p,
+            top_k=top_k,
+            min_p=min_p,
+            presence_penalty=presence_penalty,
+            seed=seed,
+        )
+
+    def build_prompt(self, system_prompt: str, user_prompt: str) -> str:
+        messages = [
+            {"role": "system", "content": system_prompt},
+            {"role": "user", "content": user_prompt},
+        ]
+        return self.tokenizer.apply_chat_template(
+            messages,
+            tokenize=False,
+            add_generation_prompt=True,
+        )
+
+    def generate(self, prompts: List[str]) -> List[str]:
+        outputs = self.llm.generate(prompts, self.sampling_params)
+        return [item.outputs[0].text for item in outputs]
+
+
+def run_vllm_inference() -> None:
+    model_name = "Qwen/Qwen3-30B-A3B-Instruct-2507"
+    system_prompt = "You are a concise assistant. Answer in 2-3 sentences."
+    user_prompt = "Explain what retrieval-augmented generation is."
+
+    engine = VLLMInferenceEngine(model_name=model_name)
+    prompt = engine.build_prompt(system_prompt, user_prompt)
+    outputs = engine.generate([prompt])
+
+    for idx, text in enumerate(outputs, start=1):
+        print(f"=== Output {idx} ===")
+        print(text.strip())
+
+
+
+
 
 def read_jsonl(file_path):
     with open(file_path, 'r') as f:
@@ -57,6 +118,20 @@ def perform_retrieval(subqueries, retrieval_manager, retrieval_batch_size):
 
 
 
+def load_model(model_path):
+    model_name = "Qwen/Qwen3-30B-A3B-Instruct-2507"
+
+    # load the tokenizer and the model
+    tokenizer = AutoTokenizer.from_pretrained(model_name)
+    model = AutoModelForCausalLM.from_pretrained(
+        model_name,
+        torch_dtype="auto",
+        device_map="auto"
+    )
+    model.eval()
+    return model, tokenizer
+
+
 data = read_jsonl('verl_checkpoints/SearchR1-nq_hotpotqa_train-qwen2.5-7b-em-ppo_inference_musique_sm/test_outputs.jsonl')
 port = 8000
 TOPK = 50
@@ -99,4 +174,7 @@ write_jsonl('verl_checkpoints/SearchR1-nq_hotpotqa_train-qwen2.5-7b-em-ppo_infer
 print('===============================================')
 print('End Performing Retrieval')
 print('===============================================')
+
+
+run_vllm_inference()
 
