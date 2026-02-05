@@ -539,7 +539,7 @@ class RayPPOTrainer(object):
                             if k == 'percentage_not_nones':
                                 dynamic_topk_metrics_list[k].append(float(final_gen_batch_output.meta_info[k]))
                             else:
-                                dynamic_topk_metrics_list[k].extend(float(final_gen_batch_output.meta_info[k]))
+                                dynamic_topk_metrics_list[k].extend(final_gen_batch_output.meta_info[k])
                     
                     test_batch = test_batch.union(final_gen_batch_output)
                     
