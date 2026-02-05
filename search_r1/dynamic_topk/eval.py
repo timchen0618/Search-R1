@@ -193,11 +193,11 @@ vllm_outputs = run_vllm_inference(evaluation_data)
 # - passage: the passage that was used for retrieval
 # - vllm_output: the output of the VLLM model
 vllm_output_data = []
-for question, passage, vllm_output in zip(evaluation_data, vllm_outputs):
+for item, vllm_output in zip(evaluation_data, vllm_outputs):
     vllm_output_data.append({
-        'question': question,
-        'passage': passage,
-        'vllm_output': vllm_output
+        'question': item['question'],
+        'passage': item['passage'],
+        'vllm_output': vllm_output.strip()
     })
     
 write_jsonl('verl_checkpoints/SearchR1-nq_hotpotqa_train-qwen2.5-7b-em-ppo_inference_musique_sm/vllm_outputs.jsonl', vllm_output_data)
