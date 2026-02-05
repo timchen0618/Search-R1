@@ -47,14 +47,13 @@ def _parse_search_tag(text: str) -> Tuple[Optional[str], Optional[int]]:
     return subqueries, topks
 
 
-def perform_retrieval(data, retrieval_manager, retrieval_batch_size):
-    for i in range(0, len(data), retrieval_batch_size):
-        batch_data = data[i:i+retrieval_batch_size]
-        batch_subqueries = [item['trajectory'] for item in batch_data]
+def perform_retrieval(subqueries, retrieval_manager, retrieval_batch_size):
+    all_search_results = []
+    for i in range(0, len(subqueries), retrieval_batch_size):
+        batch_subqueries = subqueries[i:i+retrieval_batch_size]
         search_results = retrieval_manager.batch_search(batch_subqueries)
-        for j in range(len(batch_data)):
-            batch_data[j]['search_results'] = search_results[j]
-    return data
+        all_search_results.extend(search_results)
+    return all_search_results
 
 
 
@@ -65,7 +64,7 @@ retrieval_batch_size = 512
 
 
 
-# retrieval_manager = RetrievalManager(search_url=f'http://127.0.0.1:{port}/search', topk=TOPK)
+
 
 subqueries, topks, num_queries_per_inst = collect_subqueries(data)
 
@@ -76,6 +75,14 @@ print('topks:', topks)
 print('num_queries_per_inst:', num_queries_per_inst)
 
 # # perform retrieval batch by batch
-# data = perform_retrieval(data, retrieval_manager, retrieval_batch_size)
+print('===============================================')
+print('Start Performing Retrieval')
+print('===============================================')
+retrieval_manager = RetrievalManager(search_url=f'http://127.0.0.1:{port}/search', topk=TOPK)
+all_search_results = perform_retrieval(subqueries, retrieval_manager, retrieval_batch_size)
+print('all_search_results[0]:', all_search_results[0])
+print('===============================================')
+print('End Performing Retrieval')
+print('===============================================')
 
 # write_jsonl('test_outputs_with_search_results.jsonl', data)
