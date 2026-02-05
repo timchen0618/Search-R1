@@ -69,6 +69,12 @@ retrieval_batch_size = 512
 
 subqueries, topks, num_queries_per_inst = collect_subqueries(data)
 
+print('Start Printing Subqueries and Topks')
+for i in range(len(subqueries)):
+    print(subqueries[i], topks[i])
+    print('--------------------------------')
+print('End Printing Subqueries and Topks')
+
 # # perform retrieval batch by batch
 # data = perform_retrieval(data, retrieval_manager, retrieval_batch_size)
 
