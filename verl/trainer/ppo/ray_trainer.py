@@ -279,6 +279,8 @@ def compute_data_metrics(batch, use_critic=True):
         metrics['dynamic_topk/average_topks'] = float(batch.meta_info['average_topks'])
     if 'percentage_not_nones' in batch.meta_info:
         metrics['dynamic_topk/percentage_not_nones'] = float(batch.meta_info['percentage_not_nones'])
+    if 'std_topks_across_turns' in batch.meta_info:
+        metrics['dynamic_topk/std_topks_across_turns'] = float(np.array(batch.meta_info['std_topks_across_turns'], dtype=np.float32).mean())
 
     return metrics
 
