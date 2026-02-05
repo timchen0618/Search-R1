@@ -36,6 +36,7 @@ class RetrievalManager:
             "topk": [int(self.topk)] * len(query_texts),
             "return_scores": True
         }
+        print('payload:', payload)
         return requests.post(self.search_url, json=payload).json()
 
     def _passages2string(self, retrieval_result):
