@@ -27,7 +27,7 @@ class GenerationConfig:
 def stats(xs: List[int]) -> Tuple[float, float]:
     n = len(xs)
     if n == 0:
-        return float("nan")
+        return float("nan"), float("nan")
     m = sum(xs) / n
     return m, math.sqrt(sum((x - m) * (x - m) for x in xs) / n)
 
@@ -333,6 +333,8 @@ class LLMGenerationManager:
                 responses_ids,
             )
         
+        print("topks_across_turns:", topks_across_turns)
+        print('stats:', [stats(topks) for topks in topks_across_turns])
         average_topks_across_turns, std_topks_across_turns = zip(*[stats(topks) for topks in topks_across_turns])
         meta_info['average_topks_across_turns'] = list(average_topks_across_turns)
         meta_info['std_topks_across_turns'] = list(std_topks_across_turns)

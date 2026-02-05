@@ -280,9 +280,9 @@ def compute_data_metrics(batch, use_critic=True):
     if 'percentage_not_nones' in batch.meta_info:
         metrics['dynamic_topk/percentage_not_nones'] = float(batch.meta_info['percentage_not_nones'])
     if 'std_topks_across_turns' in batch.meta_info:
-        metrics['dynamic_topk/std_topks_across_turns'] = float(np.array(batch.meta_info['std_topks_across_turns'], dtype=np.float32).mean())
+        metrics['dynamic_topk/std_topks_across_turns'] = float(np.nanmean(np.array(batch.meta_info['std_topks_across_turns'], dtype=np.float32)))
     if 'sum_topks_across_turns' in batch.meta_info:
-        metrics['dynamic_topk/sum_topks_across_turns'] = float(np.array(batch.meta_info['sum_topks_across_turns'], dtype=np.int16).mean())
+        metrics['dynamic_topk/sum_topks_across_turns'] = float(np.nanmean(np.array(batch.meta_info['sum_topks_across_turns'], dtype=np.int16)))
 
     return metrics
 
@@ -570,7 +570,7 @@ class RayPPOTrainer(object):
             metric_dict[f'val/test_score/{data_source}'] = np.mean(rewards)
 
         for k in dynamic_topk_metrics_list.keys():
-            metric_dict[f'val/dynamic_topk/{k}'] = np.mean(np.array(dynamic_topk_metrics_list[k], dtype=np.float32))
+            metric_dict[f'val/dynamic_topk/{k}'] = np.nanmean(np.array(dynamic_topk_metrics_list[k], dtype=np.float32))
 
         return metric_dict, all_output_sequences
 
