@@ -57,22 +57,17 @@ def perform_retrieval(subqueries, retrieval_manager, retrieval_batch_size):
 
 
 
-data = read_jsonl('verl_checkpoints/SearchR1-nq_hotpotqa_train-qwen2.5-7b-em-ppo_inference_musique_sm/test_outputs.jsonl')[:5]
+data = read_jsonl('verl_checkpoints/SearchR1-nq_hotpotqa_train-qwen2.5-7b-em-ppo_inference_musique_sm/test_outputs.jsonl')
 port = 8000
 TOPK = 50
 retrieval_batch_size = 512
 
-
-
-
-
 subqueries, topks, num_queries_per_inst = collect_subqueries(data)
 
-print('Start Printing Subqueries and Topks')
-
-print('subqueries:', subqueries)
-print('topks:', topks)
-print('num_queries_per_inst:', num_queries_per_inst)
+# print('Start Printing Subqueries and Topks')
+# print('subqueries:', subqueries)
+# print('topks:', topks)
+# print('num_queries_per_inst:', num_queries_per_inst)
 
 # # perform retrieval batch by batch
 print('===============================================')
@@ -80,10 +75,28 @@ print('Start Performing Retrieval')
 print('===============================================')
 retrieval_manager = RetrievalManager(search_url=f'http://127.0.0.1:{port}/retrieve', topk=TOPK)
 all_search_results = perform_retrieval(subqueries, retrieval_manager, retrieval_batch_size)
-# print('all_search_results[0]:', all_search_results[0])
-print('len_all_search_results:', len(all_search_results))
+
+# create a JSONL file to store the search results 
+# each entry in a JSON, with the following fields:
+# - subquery: the subquery that was used for retrieval
+# - ctxs: the search results for the subquery
+# - predicted_topk: the topk that was predicted by the model
+output_data = []
+assert len(subqueries) == len(all_search_results), f'Length mismatch: {len(subqueries)} != {len(all_search_results)}'
+assert len(topks) == len(subqueries), f'Length mismatch: {len(topks)} != {len(subqueries)}'
+
+for subquery, topk, search_results in zip(subqueries, topks, all_search_results):
+    assert len(search_results) == TOPK, f'Retrieval result length mismatch: {len(search_results)} != {TOPK}'
+    output_data.append({
+        'subquery': subquery,
+        'ctxs': search_results,
+        'predicted_topk': topk if topk is not None else 0
+    })
+write_jsonl('verl_checkpoints/SearchR1-nq_hotpotqa_train-qwen2.5-7b-em-ppo_inference_musique_sm/test_outputs_with_search_results.jsonl', output_data)
+write_jsonl('verl_checkpoints/SearchR1-nq_hotpotqa_train-qwen2.5-7b-em-ppo_inference_musique_sm/num_queries_per_inst.jsonl', [{"num_queries": _num} for _num in num_queries_per_inst])
+
+
 print('===============================================')
 print('End Performing Retrieval')
 print('===============================================')
 
-# write_jsonl('test_outputs_with_search_results.jsonl', data)
