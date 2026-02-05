@@ -569,10 +569,10 @@ class RayPPOTrainer(object):
         for data_source, rewards in data_source_reward.items():
             metric_dict[f'val/test_score/{data_source}'] = np.mean(rewards)
 
-        print('===============================================')
-        for k in dynamic_topk_metrics_list.keys():
-            print(k, dynamic_topk_metrics_list[k])
-        print('===============================================')
+        # print('===============================================')
+        # for k in dynamic_topk_metrics_list.keys():
+        #     print(k, dynamic_topk_metrics_list[k])
+        # print('===============================================')
 
         for k in dynamic_topk_metrics_list.keys():
             metric_dict[f'val/dynamic_topk/{k}'] = np.nanmean(np.array(dynamic_topk_metrics_list[k], dtype=np.float32))
@@ -711,9 +711,9 @@ class RayPPOTrainer(object):
                 if self.config.trainer.get('save_output_sequences', False):
                     if not os.path.exists(self.config.trainer.default_local_dir):
                         os.makedirs(self.config.trainer.default_local_dir)
-                    with open(os.path.join(self.config.trainer.default_local_dir, 'test_outputs.txt'), 'w') as f:
+                    with open(os.path.join(self.config.trainer.default_local_dir, 'test_outputs.jsonl'), 'w') as f:
                         for sequence in output_sequences:
-                            f.write(sequence + '\n')
+                            f.write(json.dumps({'trajectory': sequence}) + '\n')
                 return
 
         # we start from step 1
