@@ -24,8 +24,6 @@ class RetrievalManager:
             return []
         
         rrr = self._batch_search(queries)
-        print('-----------=============================-------------------------')
-        print(rrr)
         results = rrr['result']
         
         return [self._passages2string(result) for result in results]
@@ -36,7 +34,6 @@ class RetrievalManager:
             "topk": [int(self.topk)] * len(query_texts),
             "return_scores": True
         }
-        print('payload:', payload)
         return requests.post(self.search_url, json=payload).json()
 
     def _passages2string(self, retrieval_result):
