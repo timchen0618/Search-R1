@@ -311,6 +311,7 @@ def compute_timing_metrics(batch, timing_raw):
     }
 
 
+
 @contextmanager
 def _timer(name: str, timing_raw: Dict[str, float]):
     with Timer(name=name, logger=None) as timer:
@@ -451,7 +452,10 @@ class RayPPOTrainer(object):
         reward_tensor_lst = []
         data_source_lst = []
         all_output_sequences = []
-
+        dynamic_topk_metrics_list = {}
+        for k in ['average_topks_across_turns', 'percentage_not_nones', 'std_topks_across_turns', 'sum_topks_across_turns']:
+            dynamic_topk_metrics_list[k] = []
+        
         gen_config = GenerationConfig(
             max_turns=self.config.max_turns,
             max_start_length=self.config.data.max_start_length,
@@ -529,6 +533,14 @@ class RayPPOTrainer(object):
                             initial_input_ids=first_input_ids,
                         )
                     
+                    # gather dynamic topk metrics
+                    for k in ['average_topks_across_turns', 'percentage_not_nones', 'std_topks_across_turns', 'sum_topks_across_turns']:
+                        if k in final_gen_batch_output.meta_info:
+                            if k == 'percentage_not_nones':
+                                dynamic_topk_metrics_list[k].append(float(final_gen_batch_output.meta_info[k]))
+                            else:
+                                dynamic_topk_metrics_list[k].extend(float(final_gen_batch_output.meta_info[k]))
+                    
                     test_batch = test_batch.union(final_gen_batch_output)
                     
                     for key in test_batch.batch.keys():
@@ -556,6 +568,9 @@ class RayPPOTrainer(object):
         metric_dict = {}
         for data_source, rewards in data_source_reward.items():
             metric_dict[f'val/test_score/{data_source}'] = np.mean(rewards)
+
+        for k in dynamic_topk_metrics_list.keys():
+            metric_dict[f'val/dynamic_topk/{k}'] = np.mean(np.array(dynamic_topk_metrics_list[k], dtype=np.float32))
 
         return metric_dict, all_output_sequences
 
