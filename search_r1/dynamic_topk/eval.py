@@ -1,7 +1,7 @@
 import json
 from transformers import AutoModelForCausalLM, AutoTokenizer
 from search_r1.search.retrieval_manager import RetrievalManager
-from typing import Optional, Tuple, List
+from typing import Optional, Tuple, List, Dict
 import re
 from vllm import LLM, SamplingParams
 
@@ -48,19 +48,20 @@ class VLLMInferenceEngine:
         return [item.outputs[0].text for item in outputs]
 
 
-def run_vllm_inference() -> None:
+def run_vllm_inference(evaluation_data: List[Dict]) -> List[str]:
     model_name = "Qwen/Qwen3-30B-A3B-Instruct-2507"
-    system_prompt = "You are a concise assistant. Answer in 2-3 sentences."
-    user_prompt = "Explain what retrieval-augmented generation is."
+    system_prompt = "You are an expert in document retrieval. You will be given a passage and a question. You need to determine if the passage is relevant and useful for answering the question."
+    user_prompt = "Question:\n{question}\n\nPassage:\n{passage}\n\nIs this passage useful for answering the question?\nAnswer only \"Yes\" or \"No\"."
 
     engine = VLLMInferenceEngine(model_name=model_name, gpu_memory_utilization=0.7)
-    prompt = engine.build_prompt(system_prompt, user_prompt)
-    outputs = engine.generate([prompt])
+    prompts = [engine.build_prompt(system_prompt, user_prompt.format(question=item['question'], passage=item['passage'])) for item in evaluation_data]
+    outputs = engine.generate(prompts)
 
     for idx, text in enumerate(outputs, start=1):
         print(f"=== Output {idx} ===")
         print(text.strip())
 
+    return outputs
 
 
 
@@ -176,6 +177,27 @@ print('===============================================')
 print('End Performing Retrieval')
 print('===============================================')
 
+evaluation_data = []
+for item in output_data:
+    for ctx in item['ctxs']:
+        evaluation_data.append({
+            'question': item['subquery'],
+            'passage': ctx['text'],
+        })
+print(f'Running VLLM Inference on {len(evaluation_data)} pairs of question and passage')
+vllm_outputs = run_vllm_inference(evaluation_data)
 
-run_vllm_inference()
-
+# create a JSONL file to store the VLLM outputs
+# each entry in a JSON, with the following fields:
+# - question: the question that was used for retrieval
+# - passage: the passage that was used for retrieval
+# - vllm_output: the output of the VLLM model
+vllm_output_data = []
+for question, passage, vllm_output in zip(evaluation_data, vllm_outputs):
+    vllm_output_data.append({
+        'question': question,
+        'passage': passage,
+        'vllm_output': vllm_output
+    })
+    
+write_jsonl('verl_checkpoints/SearchR1-nq_hotpotqa_train-qwen2.5-7b-em-ppo_inference_musique_sm/vllm_outputs.jsonl', vllm_output_data)
