@@ -145,73 +145,76 @@ def main():
     parser.add_argument("--port", type=int, default=8000)
     args = parser.parse_args()
         
-    data = read_jsonl(os.path.join(args.exp_data_path, args.eval_file_path))
-    TOPK = 50
-    retrieval_batch_size = 512
+    
 
-    subqueries, topks, num_queries_per_inst = collect_subqueries(data)
+    if os.path.join(args.exp_data_path, 'test_outputs_with_search_results.jsonl').exists():
+        print('[WARNING] Search results already exist, skipping retrieval and collecting subqueries')
+        output_data = read_jsonl(os.path.join(args.exp_data_path, 'test_outputs_with_search_results.jsonl'))
+    else:
+        data = read_jsonl(os.path.join(args.exp_data_path, args.eval_file_path))
+        TOPK = 50
+        retrieval_batch_size = 512
 
-    # print('Start Printing Subqueries and Topks')
-    # print('subqueries:', subqueries)
-    # print('topks:', topks)
-    # print('num_queries_per_inst:', num_queries_per_inst)
-
-    # # perform retrieval batch by batch
-    print('===============================================')
-    print('Start Performing Retrieval')
-    print('===============================================')
-    retrieval_manager = RetrievalManager(search_url=f'http://127.0.0.1:{args.port}/retrieve', topk=TOPK)
-    all_search_results = perform_retrieval(subqueries, retrieval_manager, retrieval_batch_size)
-
-    # create a JSONL file to store the search results 
-    # each entry in a JSON, with the following fields:
-    # - subquery: the subquery that was used for retrieval
-    # - ctxs: the search results for the subquery
-    # - predicted_topk: the topk that was predicted by the model
-    output_data = []
-    assert len(subqueries) == len(all_search_results), f'Length mismatch: {len(subqueries)} != {len(all_search_results)}'
-    assert len(topks) == len(subqueries), f'Length mismatch: {len(topks)} != {len(subqueries)}'
-
-    for subquery, topk, search_results in zip(subqueries, topks, all_search_results):
-        assert len(search_results) == TOPK, f'Retrieval result length mismatch: {len(search_results)} != {TOPK}'
-        output_data.append({
-            'subquery': subquery,
-            'ctxs': search_results,
-            'predicted_topk': topk if topk is not None else 0
-        })
-    write_jsonl(os.path.join(args.exp_data_path, 'test_outputs_with_search_results.jsonl'), output_data)
-    write_jsonl(os.path.join(args.exp_data_path, 'num_queries_per_inst.jsonl'), [{"num_queries": _num} for _num in num_queries_per_inst])
-
-
-    print('===============================================')
-    print('End Performing Retrieval')
-    print('===============================================')
-
-    evaluation_data = []
-    for item in output_data:
-        for ctx in item['ctxs']:
-            evaluation_data.append({
-                'question': item['subquery'],
-                'passage': ctx['text'],
-            })
-    print(f'Running VLLM Inference on {len(evaluation_data)} pairs of question and passage')
-    engine = VLLMInferenceEngine(model_name=args.model_path, gpu_memory_utilization=args.gpu_memory_utilization)
-    vllm_outputs = run_vllm_inference(engine, evaluation_data)
-
-    # create a JSONL file to store the VLLM outputs
-    # each entry in a JSON, with the following fields:
-    # - question: the question that was used for retrieval
-    # - passage: the passage that was used for retrieval
-    # - vllm_output: the output of the VLLM model
-    vllm_output_data = []
-    for item, vllm_output in zip(evaluation_data, vllm_outputs):
-        vllm_output_data.append({
-            'question': item['question'],
-            'passage': item['passage'],
-            'vllm_output': vllm_output.strip()
-        })
+        subqueries, topks, num_queries_per_inst = collect_subqueries(data)
         
-    write_jsonl(os.path.join(args.exp_data_path, args.output_file), vllm_output_data)
+        # # perform retrieval batch by batch
+        print('===============================================')
+        print('Start Performing Retrieval')
+        print('===============================================')
+        retrieval_manager = RetrievalManager(search_url=f'http://127.0.0.1:{args.port}/retrieve', topk=TOPK)
+        all_search_results = perform_retrieval(subqueries, retrieval_manager, retrieval_batch_size)
+
+        # create a JSONL file to store the search results 
+        # each entry in a JSON, with the following fields:
+        # - subquery: the subquery that was used for retrieval
+        # - ctxs: the search results for the subquery
+        # - predicted_topk: the topk that was predicted by the model
+        output_data = []
+        assert len(subqueries) == len(all_search_results), f'Length mismatch: {len(subqueries)} != {len(all_search_results)}'
+        assert len(topks) == len(subqueries), f'Length mismatch: {len(topks)} != {len(subqueries)}'
+
+        for subquery, topk, search_results in zip(subqueries, topks, all_search_results):
+            assert len(search_results) == TOPK, f'Retrieval result length mismatch: {len(search_results)} != {TOPK}'
+            output_data.append({
+                'subquery': subquery,
+                'ctxs': search_results,
+                'predicted_topk': topk if topk is not None else 0
+            })
+        write_jsonl(os.path.join(args.exp_data_path, 'test_outputs_with_search_results.jsonl'), output_data)
+        write_jsonl(os.path.join(args.exp_data_path, 'num_queries_per_inst.jsonl'), [{"num_queries": _num} for _num in num_queries_per_inst])
+        print('===============================================')
+        print('End Performing Retrieval')
+        print('===============================================')
+
+    if os.path.join(args.exp_data_path, args.output_file).exists():
+        print('[WARNING] VLLM outputs already exist, skipping VLLM inference')
+        vllm_output_data = read_jsonl(os.path.join(args.exp_data_path, args.output_file))
+    else:
+        evaluation_data = []
+        for item in output_data:
+            for ctx in item['ctxs']:
+                evaluation_data.append({
+                    'question': item['subquery'],
+                    'passage': ctx['text'],
+                })
+        print(f'Running VLLM Inference on {len(evaluation_data)} pairs of question and passage')
+        engine = VLLMInferenceEngine(model_name=args.model_path, gpu_memory_utilization=args.gpu_memory_utilization)
+        vllm_outputs = run_vllm_inference(engine, evaluation_data)
+
+        # create a JSONL file to store the VLLM outputs
+        # each entry in a JSON, with the following fields:
+        # - question: the question that was used for retrieval
+        # - passage: the passage that was used for retrieval
+        # - vllm_output: the output of the VLLM model
+        vllm_output_data = []
+        for item, vllm_output in zip(evaluation_data, vllm_outputs):
+            vllm_output_data.append({
+                'question': item['question'],
+                'passage': item['passage'],
+                'vllm_output': vllm_output.strip()
+            })
+            
+        write_jsonl(os.path.join(args.exp_data_path, args.output_file), vllm_output_data)
     
     
     
