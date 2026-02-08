@@ -208,6 +208,16 @@ class LLMGenerationManager:
             padded_active_batch.batch[key] = padded_active_batch.batch[key].long()
 
         # Generate with padded batch
+        print('(((((((((((())))))))))))')
+        print('padded_active_batch:', padded_active_batch)
+        print('padded_active_batch.batch[input_ids]:', padded_active_batch.batch['input_ids'])
+        print('padded_active_batch.batch[attention_mask]:', padded_active_batch.batch['attention_mask'])
+        print('padded_active_batch.batch[position_ids]:', padded_active_batch.batch['position_ids'])
+        print('padded_active_batch.meta_info:', padded_active_batch.meta_info)
+        print('padded_active_batch.batch[responses]:', padded_active_batch.batch['responses'])
+        print('padded_active_batch.batch[responses_with_info_mask]:', padded_active_batch.batch['responses_with_info_mask'])
+        print('padded_active_batch.batch[prompts]:', padded_active_batch.batch['prompts'])
+        print('padded_active_batch.batch[old_log_probs]:', padded_active_batch.batch['old_log_probs'])
         padded_output = self.actor_rollout_wg.generate_sequences(padded_active_batch)
 
         # Remove padding from output
