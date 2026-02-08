@@ -215,7 +215,22 @@ def main():
             
         write_jsonl(os.path.join(args.exp_data_path, args.output_file), vllm_output_data)
     
+    ## Compute the first topk for every question that is flagged as "Yes" by the VLLM model
+    prev_question = ""
+    topk_for_subquery = []
+    _rank = 0
+    for item in vllm_output_data:
+        if item['question'] != prev_question:  # skip question if it is the same as the previous one
+            _rank += 1
+            if item['vllm_output'].strip().lower() == 'yes':
+                topk_for_subquery.append({
+                    'subquery': item['question'],
+                    'topk': _rank,
+                })
+                prev_question = item['question']
+                _rank = 0
     
+    write_jsonl(os.path.join(args.exp_data_path, 'topk_for_subquery.jsonl'), topk_for_subquery)
     
 if __name__ == "__main__":
     main()
