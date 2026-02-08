@@ -4,6 +4,8 @@ from search_r1.search.retrieval_manager import RetrievalManager
 from typing import Optional, Tuple, List, Dict
 import re
 from vllm import LLM, SamplingParams
+import argparse
+import os
 
 
 class VLLMInferenceEngine:
@@ -48,12 +50,10 @@ class VLLMInferenceEngine:
         return [item.outputs[0].text for item in outputs]
 
 
-def run_vllm_inference(evaluation_data: List[Dict]) -> List[str]:
-    model_name = "Qwen/Qwen3-30B-A3B-Instruct-2507"
+def run_vllm_inference(engine: VLLMInferenceEngine, evaluation_data: List[Dict]) -> List[str]:
     system_prompt = "You are an expert in document retrieval. You will be given a passage and a question. You need to determine if the passage is relevant and useful for answering the question."
     user_prompt = "Question:\n{question}\n\nPassage:\n{passage}\n\nIs this passage useful for answering the question?\nAnswer only \"Yes\" or \"No\"."
 
-    engine = VLLMInferenceEngine(model_name=model_name, gpu_memory_utilization=0.7)
     prompts = [engine.build_prompt(system_prompt, user_prompt.format(question=item['question'], passage=item['passage'])) for item in evaluation_data]
     outputs = engine.generate(prompts)
 
@@ -134,70 +134,80 @@ def load_model(model_path):
     return model, tokenizer
 
 
-data = read_jsonl('verl_checkpoints/SearchR1-nq_hotpotqa_train-qwen2.5-7b-em-ppo_inference_musique_sm/test_outputs.jsonl')
-port = 8000
-TOPK = 50
-retrieval_batch_size = 512
 
-subqueries, topks, num_queries_per_inst = collect_subqueries(data)
+def main(args):
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--model_path", type=str, default="Qwen/Qwen3-30B-A3B-Instruct-2507")
+    parser.add_argument("--exp_data_path", type=str, default="verl_checkpoints/SearchR1-nq_hotpotqa_train-qwen2.5-7b-em-ppo_inference_musique/")
+    parser.add_argument("--eval_file_path", type=str, default="test_outputs.jsonl")
+    parser.add_argument("--output_file", type=str, default="vllm_outputs.jsonl")
+    args = parser.parse_args()
+        
+    data = read_jsonl(os.path.join(args.exp_data_path, args.eval_file_path))
+    port = 8000
+    TOPK = 50
+    retrieval_batch_size = 512
 
-# print('Start Printing Subqueries and Topks')
-# print('subqueries:', subqueries)
-# print('topks:', topks)
-# print('num_queries_per_inst:', num_queries_per_inst)
+    subqueries, topks, num_queries_per_inst = collect_subqueries(data)
 
-# # perform retrieval batch by batch
-print('===============================================')
-print('Start Performing Retrieval')
-print('===============================================')
-retrieval_manager = RetrievalManager(search_url=f'http://127.0.0.1:{port}/retrieve', topk=TOPK)
-all_search_results = perform_retrieval(subqueries, retrieval_manager, retrieval_batch_size)
+    # print('Start Printing Subqueries and Topks')
+    # print('subqueries:', subqueries)
+    # print('topks:', topks)
+    # print('num_queries_per_inst:', num_queries_per_inst)
 
-# create a JSONL file to store the search results 
-# each entry in a JSON, with the following fields:
-# - subquery: the subquery that was used for retrieval
-# - ctxs: the search results for the subquery
-# - predicted_topk: the topk that was predicted by the model
-output_data = []
-assert len(subqueries) == len(all_search_results), f'Length mismatch: {len(subqueries)} != {len(all_search_results)}'
-assert len(topks) == len(subqueries), f'Length mismatch: {len(topks)} != {len(subqueries)}'
+    # # perform retrieval batch by batch
+    print('===============================================')
+    print('Start Performing Retrieval')
+    print('===============================================')
+    retrieval_manager = RetrievalManager(search_url=f'http://127.0.0.1:{port}/retrieve', topk=TOPK)
+    all_search_results = perform_retrieval(subqueries, retrieval_manager, retrieval_batch_size)
 
-for subquery, topk, search_results in zip(subqueries, topks, all_search_results):
-    assert len(search_results) == TOPK, f'Retrieval result length mismatch: {len(search_results)} != {TOPK}'
-    output_data.append({
-        'subquery': subquery,
-        'ctxs': search_results,
-        'predicted_topk': topk if topk is not None else 0
-    })
-write_jsonl('verl_checkpoints/SearchR1-nq_hotpotqa_train-qwen2.5-7b-em-ppo_inference_musique_sm/test_outputs_with_search_results.jsonl', output_data)
-write_jsonl('verl_checkpoints/SearchR1-nq_hotpotqa_train-qwen2.5-7b-em-ppo_inference_musique_sm/num_queries_per_inst.jsonl', [{"num_queries": _num} for _num in num_queries_per_inst])
+    # create a JSONL file to store the search results 
+    # each entry in a JSON, with the following fields:
+    # - subquery: the subquery that was used for retrieval
+    # - ctxs: the search results for the subquery
+    # - predicted_topk: the topk that was predicted by the model
+    output_data = []
+    assert len(subqueries) == len(all_search_results), f'Length mismatch: {len(subqueries)} != {len(all_search_results)}'
+    assert len(topks) == len(subqueries), f'Length mismatch: {len(topks)} != {len(subqueries)}'
 
-
-print('===============================================')
-print('End Performing Retrieval')
-print('===============================================')
-
-evaluation_data = []
-for item in output_data:
-    for ctx in item['ctxs']:
-        evaluation_data.append({
-            'question': item['subquery'],
-            'passage': ctx['text'],
+    for subquery, topk, search_results in zip(subqueries, topks, all_search_results):
+        assert len(search_results) == TOPK, f'Retrieval result length mismatch: {len(search_results)} != {TOPK}'
+        output_data.append({
+            'subquery': subquery,
+            'ctxs': search_results,
+            'predicted_topk': topk if topk is not None else 0
         })
-print(f'Running VLLM Inference on {len(evaluation_data)} pairs of question and passage')
-vllm_outputs = run_vllm_inference(evaluation_data)
+    write_jsonl(os.path.join(args.exp_data_path, 'test_outputs_with_search_results.jsonl'), output_data)
+    write_jsonl(os.path.join(args.exp_data_path, 'num_queries_per_inst.jsonl'), [{"num_queries": _num} for _num in num_queries_per_inst])
 
-# create a JSONL file to store the VLLM outputs
-# each entry in a JSON, with the following fields:
-# - question: the question that was used for retrieval
-# - passage: the passage that was used for retrieval
-# - vllm_output: the output of the VLLM model
-vllm_output_data = []
-for item, vllm_output in zip(evaluation_data, vllm_outputs):
-    vllm_output_data.append({
-        'question': item['question'],
-        'passage': item['passage'],
-        'vllm_output': vllm_output.strip()
-    })
-    
-write_jsonl('verl_checkpoints/SearchR1-nq_hotpotqa_train-qwen2.5-7b-em-ppo_inference_musique_sm/vllm_outputs.jsonl', vllm_output_data)
+
+    print('===============================================')
+    print('End Performing Retrieval')
+    print('===============================================')
+
+    evaluation_data = []
+    for item in output_data:
+        for ctx in item['ctxs']:
+            evaluation_data.append({
+                'question': item['subquery'],
+                'passage': ctx['text'],
+            })
+    print(f'Running VLLM Inference on {len(evaluation_data)} pairs of question and passage')
+    engine = VLLMInferenceEngine(model_name=args.model_path, gpu_memory_utilization=0.7)
+    vllm_outputs = run_vllm_inference(engine, evaluation_data)
+
+    # create a JSONL file to store the VLLM outputs
+    # each entry in a JSON, with the following fields:
+    # - question: the question that was used for retrieval
+    # - passage: the passage that was used for retrieval
+    # - vllm_output: the output of the VLLM model
+    vllm_output_data = []
+    for item, vllm_output in zip(evaluation_data, vllm_outputs):
+        vllm_output_data.append({
+            'question': item['question'],
+            'passage': item['passage'],
+            'vllm_output': vllm_output.strip()
+        })
+        
+    write_jsonl(os.path.join(args.exp_data_path, args.output_file), vllm_output_data)
