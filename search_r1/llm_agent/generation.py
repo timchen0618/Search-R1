@@ -182,6 +182,22 @@ class LLMGenerationManager:
             if active_batch size is not divisible by num_gpus, pad with first sequence
             then remove padding from output
         """
+        ########## Fall back to EOS token if any row has all-zero attention mask, added by Cursor ##########
+        attention_mask = active_batch.batch["attention_mask"]
+        per_row = attention_mask.sum(dim=1)
+        if (per_row == 0).any():
+            zero_rows = (per_row == 0).nonzero().flatten()
+            fallback_token_id = self.tokenizer.eos_token_id
+            if fallback_token_id is None:
+                fallback_token_id = self.tokenizer.pad_token_id
+            # Ensure at least one valid token so FlashAttention doesn't see empty sequences.
+            active_batch.batch["input_ids"][zero_rows, -1] = fallback_token_id
+            active_batch.batch["attention_mask"][zero_rows, -1] = 1
+            if "position_ids" in active_batch.batch:
+                active_batch.batch["position_ids"][zero_rows, -1] = 0
+            print(f"[WARNING] Found {len(zero_rows)} empty rows; injected fallback token.")
+        ########## Fall back to EOS token if any row has all-zero attention mask, added by Cursor ##########
+
         num_gpus = self.config.num_gpus
         if num_gpus <= 1:
             return self.actor_rollout_wg.generate_sequences(active_batch)
@@ -192,6 +208,17 @@ class LLMGenerationManager:
         for key in active_batch.batch.keys():
             active_batch.batch[key] = active_batch.batch[key].long()
         if remainder == 0:
+            print("--------------------------------")
+            am = active_batch.batch["attention_mask"]
+            per_row = am.sum(dim=1)
+            print("attention_mask sums:", per_row.tolist())
+            print("total_tokens:", int(per_row.sum()))
+            print("all-zero rows:", (per_row == 0).nonzero().flatten().tolist())
+            print('(((((((((((())))))))))))')
+            print('active_batch:', active_batch)
+            print('active_batch.batch[input_ids]:', active_batch.batch['input_ids'])
+            print('active_batch.batch[attention_mask]:', active_batch.batch['attention_mask'])
+            print('active_batch.batch[position_ids]:', active_batch.batch['position_ids'])
             return self.actor_rollout_wg.generate_sequences(active_batch)
         
         # Add padding sequences
@@ -326,7 +353,11 @@ class LLMGenerationManager:
             # gen_output = self.actor_rollout_wg.generate_sequences(rollings)
             rollings_active = DataProto.from_dict({
                 k: v[active_mask] for k, v in rollings.batch.items()
-            })            
+            })
+            print("Final LLM rollout:")
+            print("active_mask sum:", active_mask.sum().item())
+            print("rollings input_ids shape:", rollings.batch["input_ids"].shape)
+            print("rollings_active input_ids shape:", rollings_active.batch["input_ids"].shape)             
             gen_output = self._generate_with_gpu_padding(rollings_active)
 
             meta_info = gen_output.meta_info            
