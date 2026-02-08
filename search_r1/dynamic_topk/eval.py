@@ -135,7 +135,7 @@ def load_model(model_path):
 
 
 
-def main(args):
+def main():
     parser = argparse.ArgumentParser()
     parser.add_argument("--model_path", type=str, default="Qwen/Qwen3-30B-A3B-Instruct-2507")
     parser.add_argument("--exp_data_path", type=str, default="verl_checkpoints/SearchR1-nq_hotpotqa_train-qwen2.5-7b-em-ppo_inference_musique/")
@@ -211,3 +211,8 @@ def main(args):
         })
         
     write_jsonl(os.path.join(args.exp_data_path, args.output_file), vllm_output_data)
+    
+    
+    
+if __name__ == "__main__":
+    main()
