@@ -208,6 +208,12 @@ class LLMGenerationManager:
             padded_active_batch.batch[key] = padded_active_batch.batch[key].long()
 
         # Generate with padded batch
+        print("--------------------------------")
+        am = padded_active_batch.batch["attention_mask"]
+        per_row = am.sum(dim=1)
+        print("attention_mask sums:", per_row.tolist())
+        print("total_tokens:", int(per_row.sum()))
+        print("all-zero rows:", (per_row == 0).nonzero().flatten().tolist())
         print('(((((((((((())))))))))))')
         print('padded_active_batch:', padded_active_batch)
         print('padded_active_batch.batch[input_ids]:', padded_active_batch.batch['input_ids'])
