@@ -141,10 +141,11 @@ def main():
     parser.add_argument("--exp_data_path", type=str, default="verl_checkpoints/SearchR1-nq_hotpotqa_train-qwen2.5-7b-em-ppo_inference_musique/")
     parser.add_argument("--eval_file_path", type=str, default="test_outputs.jsonl")
     parser.add_argument("--output_file", type=str, default="vllm_outputs.jsonl")
+    parser.add_argument("--gpu_memory_utilization", type=float, default=0.7)
+    parser.add_argument("--port", type=int, default=8000)
     args = parser.parse_args()
         
     data = read_jsonl(os.path.join(args.exp_data_path, args.eval_file_path))
-    port = 8000
     TOPK = 50
     retrieval_batch_size = 512
 
@@ -159,7 +160,7 @@ def main():
     print('===============================================')
     print('Start Performing Retrieval')
     print('===============================================')
-    retrieval_manager = RetrievalManager(search_url=f'http://127.0.0.1:{port}/retrieve', topk=TOPK)
+    retrieval_manager = RetrievalManager(search_url=f'http://127.0.0.1:{args.port}/retrieve', topk=TOPK)
     all_search_results = perform_retrieval(subqueries, retrieval_manager, retrieval_batch_size)
 
     # create a JSONL file to store the search results 
@@ -194,7 +195,7 @@ def main():
                 'passage': ctx['text'],
             })
     print(f'Running VLLM Inference on {len(evaluation_data)} pairs of question and passage')
-    engine = VLLMInferenceEngine(model_name=args.model_path, gpu_memory_utilization=0.7)
+    engine = VLLMInferenceEngine(model_name=args.model_path, gpu_memory_utilization=args.gpu_memory_utilization)
     vllm_outputs = run_vllm_inference(engine, evaluation_data)
 
     # create a JSONL file to store the VLLM outputs
