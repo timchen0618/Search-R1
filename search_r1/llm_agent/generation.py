@@ -258,11 +258,18 @@ class LLMGenerationManager:
                 rollings.batch,
                 keys=['input_ids', 'attention_mask', 'position_ids']
             )
+            print("step:", step)
+            print("active_mask sum:", active_mask.sum().item(), "batch_size:", rollings.batch["input_ids"].shape[0])
+            print("turns_stats:", turns_stats.tolist())
             
             # gen_output = self.actor_rollout_wg.generate_sequences(rollings)
             rollings_active = DataProto.from_dict({
                 k: v[active_mask] for k, v in rollings.batch.items()
-            })            
+            }) 
+            
+            print("active_mask sum:", active_mask.sum().item())
+            print("rollings input_ids shape:", rollings.batch["input_ids"].shape)
+            print("rollings_active input_ids shape:", rollings_active.batch["input_ids"].shape)           
             gen_output = self._generate_with_gpu_padding(rollings_active)
 
             meta_info = gen_output.meta_info            
@@ -324,6 +331,10 @@ class LLMGenerationManager:
             _, dones, valid_action, is_search, cur_topks, cur_percentage_not_nones = self.execute_predictions(
                 responses_str, self.tokenizer.pad_token, active_mask, do_search=False
             )
+            
+            print("dones:", dones)
+            print("valid_action:", valid_action)
+            print("is_search:", is_search)
 
             curr_active_mask = torch.tensor([not done for done in dones], dtype=torch.bool)
             active_mask = active_mask * curr_active_mask
@@ -332,6 +343,7 @@ class LLMGenerationManager:
             valid_search_stats += torch.tensor(is_search, dtype=torch.int)
             average_topks.extend([topk for (topk, _is_search) in zip(cur_topks, is_search) if _is_search])
             percentage_not_nones.extend(cur_percentage_not_nones)
+            print("active_mask sum after:", active_mask.sum().item())
 
             original_right_side = self._update_right_side(
                 original_right_side,
