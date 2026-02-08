@@ -6,7 +6,7 @@ import re
 from vllm import LLM, SamplingParams
 import argparse
 import os
-
+from pathlib import Path
 
 class VLLMInferenceEngine:
     def __init__(
@@ -146,8 +146,7 @@ def main():
     args = parser.parse_args()
         
     
-
-    if os.path.join(args.exp_data_path, 'test_outputs_with_search_results.jsonl').exists():
+    if (Path(args.exp_data_path) / 'test_outputs_with_search_results.jsonl').exists():
         print('[WARNING] Search results already exist, skipping retrieval and collecting subqueries')
         output_data = read_jsonl(os.path.join(args.exp_data_path, 'test_outputs_with_search_results.jsonl'))
     else:
@@ -186,7 +185,7 @@ def main():
         print('End Performing Retrieval')
         print('===============================================')
 
-    if os.path.join(args.exp_data_path, args.output_file).exists():
+    if (Path(args.exp_data_path) / args.output_file).exists():
         print('[WARNING] VLLM outputs already exist, skipping VLLM inference')
         vllm_output_data = read_jsonl(os.path.join(args.exp_data_path, args.output_file))
     else:
