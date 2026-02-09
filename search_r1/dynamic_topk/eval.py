@@ -145,15 +145,14 @@ def main():
     parser.add_argument("--port", type=int, default=8000)
     args = parser.parse_args()
         
+    TOPK = 50
+    retrieval_batch_size = 512
     
     if (Path(args.exp_data_path) / 'test_outputs_with_search_results.jsonl').exists():
         print('[WARNING] Search results already exist, skipping retrieval and collecting subqueries')
         output_data = read_jsonl(os.path.join(args.exp_data_path, 'test_outputs_with_search_results.jsonl'))
     else:
         data = read_jsonl(os.path.join(args.exp_data_path, args.eval_file_path))
-        TOPK = 50
-        retrieval_batch_size = 512
-
         subqueries, topks, num_queries_per_inst = collect_subqueries(data)
         
         # # perform retrieval batch by batch
