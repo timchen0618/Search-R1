@@ -276,13 +276,15 @@ def main():
         bins_labels = [str(i) for i in range(1, 11)] + ['>10']
         from collections import Counter
         counts = Counter(binned_topks)
-        frequencies = [counts.get(label, 0) for label in bins_labels]
+        total = sum(counts.values())
+        # Compute percentages for each bin
+        percentages = [(counts.get(label, 0) / total * 100) if total > 0 else 0 for label in bins_labels]
 
         plt.figure(figsize=(8, 6))
-        plt.bar(bins_labels, frequencies, color="skyblue", edgecolor='black')
+        plt.bar(bins_labels, percentages, color="skyblue", edgecolor='black')
         plt.title("Distribution of First TopK where VLLM Output is 'Yes'")
         plt.xlabel("TopK")
-        plt.ylabel("Frequency")
+        plt.ylabel("Percentage (%)")
         plt.grid(axis='y')
         plt.tight_layout()
         plt.savefig(os.path.join(args.exp_data_path, "topk_distribution.png"))
