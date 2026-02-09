@@ -221,10 +221,19 @@ def main():
         topk_for_subquery = read_jsonl(os.path.join(args.exp_data_path, 'topk_for_subquery.jsonl'))
     else:
         prev_question = ""
+        current_question = ""
         topk_for_subquery = []
         _rank = 0
         for item in vllm_output_data:
             if item['question'] != prev_question:  # skip question if it is the same as the previous one
+                if item['question'] != current_question:  
+                    # if the question is different from the current question, reset the rank. 
+                    # This means no "Yes" answer for the previous question. 
+                    topk_for_subquery.append({
+                        'subquery': current_question,
+                        'topk': _rank,
+                    })
+                    _rank = 0  # reset the rank for the new question
                 _rank += 1
                 if item['vllm_output'].strip().lower() == 'yes':
                     topk_for_subquery.append({
@@ -233,6 +242,8 @@ def main():
                     })
                     prev_question = item['question']
                     _rank = 0
+            current_question = item['question']
+            
         
         write_jsonl(os.path.join(args.exp_data_path, 'topk_for_subquery.jsonl'), topk_for_subquery)
         
@@ -255,8 +266,21 @@ def main():
         print(f"  Quartiles: {np.percentile(topks_array, [25, 50, 75])}")
 
         # Plot histogram
+        # Bin topks into [1,2,3,...,10, '>10']
+        binned_topks = []
+        for k in topks:
+            if k > 10:
+                binned_topks.append('>10')
+            else:
+                binned_topks.append(str(k))
+        # Prepare bin labels
+        bins_labels = [str(i) for i in range(1, 11)] + ['>10']
+        from collections import Counter
+        counts = Counter(binned_topks)
+        frequencies = [counts.get(label, 0) for label in bins_labels]
+
         plt.figure(figsize=(8, 6))
-        plt.hist(topks, bins=range(int(np.min(topks_array)), int(np.max(topks_array))+2), edgecolor='black', align='left')
+        plt.bar(bins_labels, frequencies, color="skyblue", edgecolor='black')
         plt.title("Distribution of First TopK where VLLM Output is 'Yes'")
         plt.xlabel("TopK")
         plt.ylabel("Frequency")
