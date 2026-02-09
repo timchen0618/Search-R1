@@ -453,6 +453,11 @@ class ActorRolloutRefWorker(Worker):
 
             output = self.rollout_sharding_manager.postprocess_data(output)
 
+        print("-----After Rollout Sharding Manager---------------")
+        print("output:", output)
+        print("output.batch[input_ids]:", output.batch["input_ids"])
+        print("output.batch[attention_mask]:", output.batch["attention_mask"])
+        print("output.batch[position_ids]:", output.batch["position_ids"])
         if self._is_actor and recompute_log_prob:
             # we should always recompute old_log_probs when it is HybridEngine
             output.meta_info['micro_batch_size'] = self.config.rollout.log_prob_micro_batch_size
@@ -462,6 +467,11 @@ class ActorRolloutRefWorker(Worker):
             # perform recompute log_prob
             with self.ulysses_sharding_manager:
                 output = self.ulysses_sharding_manager.preprocess_data(output)
+                print("-----After Ulysses Preprocess Data---------------")
+                print("output:", output)
+                print("output.batch[input_ids]:", output.batch["input_ids"])
+                print("output.batch[attention_mask]:", output.batch["attention_mask"])
+                print("output.batch[position_ids]:", output.batch["position_ids"])
                 old_log_probs = self.actor.compute_log_prob(data=output)
                 output.batch['old_log_probs'] = old_log_probs
                 output = self.ulysses_sharding_manager.postprocess_data(output)
