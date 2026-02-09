@@ -225,7 +225,7 @@ def main():
         _rank = 0
         for item in vllm_output_data:
             if item['question'] != prev_question:  # skip question if it is the same as the previous one
-                if (item['question'] != current_question and topk_for_subquery[-1]['subquery'] != current_question) or _rank == TOPK:  
+                if (item['question'] != current_question and (len(topk_for_subquery) > 0 and topk_for_subquery[-1]['subquery'] != current_question)) or _rank == TOPK:  
                     # if the question is different from the current question, reset the rank. 
                     # This means no "Yes" answer for the previous question. 
                     topk_for_subquery.append({
