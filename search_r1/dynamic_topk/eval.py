@@ -216,21 +216,57 @@ def main():
         write_jsonl(os.path.join(args.exp_data_path, args.output_file), vllm_output_data)
     
     ## Compute the first topk for every question that is flagged as "Yes" by the VLLM model
-    prev_question = ""
-    topk_for_subquery = []
-    _rank = 0
-    for item in vllm_output_data:
-        if item['question'] != prev_question:  # skip question if it is the same as the previous one
-            _rank += 1
-            if item['vllm_output'].strip().lower() == 'yes':
-                topk_for_subquery.append({
-                    'subquery': item['question'],
-                    'topk': _rank,
-                })
-                prev_question = item['question']
-                _rank = 0
-    
-    write_jsonl(os.path.join(args.exp_data_path, 'topk_for_subquery.jsonl'), topk_for_subquery)
+    if (Path(args.exp_data_path) / 'topk_for_subquery.jsonl').exists():
+        print('[WARNING] Topk for subquery already exist, skipping computation')
+        topk_for_subquery = read_jsonl(os.path.join(args.exp_data_path, 'topk_for_subquery.jsonl'))
+    else:
+        prev_question = ""
+        topk_for_subquery = []
+        _rank = 0
+        for item in vllm_output_data:
+            if item['question'] != prev_question:  # skip question if it is the same as the previous one
+                _rank += 1
+                if item['vllm_output'].strip().lower() == 'yes':
+                    topk_for_subquery.append({
+                        'subquery': item['question'],
+                        'topk': _rank,
+                    })
+                    prev_question = item['question']
+                    _rank = 0
+        
+        write_jsonl(os.path.join(args.exp_data_path, 'topk_for_subquery.jsonl'), topk_for_subquery)
+        
+    ## Compute the statistics of the topks
+    ## Also plot the distribution of the topks
+    import numpy as np
+    import matplotlib.pyplot as plt
+
+    # Extract the 'topk' values
+    topks = [item['topk'] for item in topk_for_subquery]
+    if len(topks) > 0:
+        topks_array = np.array(topks)
+        print("Topk statistics:")
+        print(f"  Count: {len(topks_array)}")
+        print(f"  Min: {np.min(topks_array)}")
+        print(f"  Max: {np.max(topks_array)}")
+        print(f"  Mean: {np.mean(topks_array):.2f}")
+        print(f"  Median: {np.median(topks_array)}")
+        print(f"  Std: {np.std(topks_array):.2f}")
+        print(f"  Quartiles: {np.percentile(topks_array, [25, 50, 75])}")
+
+        # Plot histogram
+        plt.figure(figsize=(8, 6))
+        plt.hist(topks, bins=range(int(np.min(topks_array)), int(np.max(topks_array))+2), edgecolor='black', align='left')
+        plt.title("Distribution of First TopK where VLLM Output is 'Yes'")
+        plt.xlabel("TopK")
+        plt.ylabel("Frequency")
+        plt.grid(axis='y')
+        plt.tight_layout()
+        plt.savefig(os.path.join(args.exp_data_path, "topk_distribution.png"))
+        print(f"Histogram saved to {os.path.join(args.exp_data_path, 'topk_distribution.png')}")
+        plt.show()
+    else:
+        print("No 'topk' values found in topk_for_subquery.")
     
 if __name__ == "__main__":
     main()
