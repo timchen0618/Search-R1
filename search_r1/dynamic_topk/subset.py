@@ -195,6 +195,8 @@ def partition_outputs(args):
             subset_outputs['bamboogle'].append(item)
             
     for subset, outputs in subset_outputs.items():
+        print(f'Processing {subset} with {len(outputs)} outputs')
+        print('writing to ', os.path.join(args.exp_data_path, f'{subset}', 'test_outputs.jsonl'))
         if not (Path(args.exp_data_path) / f'{subset}').exists():
             (Path(args.exp_data_path) / f'{subset}').mkdir(parents=True, exist_ok=True)
         write_jsonl(os.path.join(args.exp_data_path, f'{subset}', 'test_outputs.jsonl'), outputs)
