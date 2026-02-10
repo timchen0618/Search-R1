@@ -12,7 +12,7 @@ def read_jsonl(file_path):
     
     
 def extract_question(trajectory):
-    question_pattern = re.compile(r'Question:(.*?)\n\n\n', re.DOTALL)
+    question_pattern = re.compile(r'Question:(.*?)\n', re.DOTALL)
     matches = question_pattern.findall(trajectory)
     if matches:
         return matches[0].strip()
@@ -114,5 +114,7 @@ if __name__ == '__main__':
     parser.add_argument('--num_examples', '-n', type=int, default=None)
     args = parser.parse_args()
 
+    print('Extracting data from ', args.data_path)
     ground_truths = extract_data(args.data_path)
+    print('Finished extracting data from ', args.data_path)
     parse_output(args.output_path, ground_truths, args.print, args.num_examples)
