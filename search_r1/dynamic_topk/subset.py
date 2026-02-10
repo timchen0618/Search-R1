@@ -29,15 +29,7 @@ def collect_subqueries(data):
 
 
 
-def main():
-    parser = argparse.ArgumentParser()
-    parser.add_argument("--model_path", type=str, default="Qwen/Qwen3-30B-A3B-Instruct-2507")
-    parser.add_argument("--exp_data_path", type=str, default="verl_checkpoints/SearchR1-nq_hotpotqa_train-qwen2.5-7b-em-ppo_inference_musique/")
-    parser.add_argument("--eval_file_path", type=str, default="test_outputs.jsonl")
-    parser.add_argument("--output_file", type=str, default="vllm_outputs.jsonl")
-    parser.add_argument("--gpu_memory_utilization", type=float, default=0.7)
-    parser.add_argument("--port", type=int, default=8000)
-    args = parser.parse_args()
+def main(args):
         
     TOPK = 50
     num_queries_per_inst = read_jsonl(os.path.join(args.exp_data_path, 'num_queries_per_inst.jsonl'))
@@ -186,6 +178,36 @@ def main():
 
     else:
         print("No 'topk' values found in topk_for_subquery.")
-    
+
+
+def partition_outputs(args):
+    outputs = read_jsonl(os.path.join(args.exp_data_path, 'test_outputs.jsonl'))
+    org_subset_size = {'hotpotqa': 7405, '2wikimultihopqa': 12576, 'musique': 2417, 'bamboogle': 125}
+    subset_outputs = {subset: [] for subset in org_subset_size}
+    for idx, item in enumerate(outputs):
+        if idx < org_subset_size['hotpotqa']:
+            subset_outputs['hotpotqa'].append(item)
+        elif idx < org_subset_size['hotpotqa'] + org_subset_size['2wikimultihopqa']:
+            subset_outputs['2wikimultihopqa'].append(item)
+        elif idx < org_subset_size['hotpotqa'] + org_subset_size['2wikimultihopqa'] + org_subset_size['musique']:
+            subset_outputs['musique'].append(item)
+        else:
+            subset_outputs['bamboogle'].append(item)
+            
+    for subset, outputs in subset_outputs.items():
+        if not (Path(args.exp_data_path) / f'{subset}').exists():
+            (Path(args.exp_data_path) / f'{subset}').mkdir(parents=True, exist_ok=True)
+        write_jsonl(os.path.join(args.exp_data_path, f'{subset}', 'test_outputs.jsonl'), outputs)
+
 if __name__ == "__main__":
-    main()
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--model_path", type=str, default="Qwen/Qwen3-30B-A3B-Instruct-2507")
+    parser.add_argument("--exp_data_path", type=str, default="verl_checkpoints/SearchR1-nq_hotpotqa_train-qwen2.5-7b-em-ppo_inference_musique/")
+    parser.add_argument("--eval_file_path", type=str, default="test_outputs.jsonl")
+    parser.add_argument("--output_file", type=str, default="vllm_outputs.jsonl")
+    parser.add_argument("--gpu_memory_utilization", type=float, default=0.7)
+    parser.add_argument("--port", type=int, default=8000)
+    args = parser.parse_args()
+    
+    partition_outputs(args)
+    # main(args)
