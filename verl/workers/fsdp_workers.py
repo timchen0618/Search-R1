@@ -472,7 +472,13 @@ class ActorRolloutRefWorker(Worker):
                 print("output.batch[input_ids]:", output.batch["input_ids"])
                 print("output.batch[attention_mask]:", output.batch["attention_mask"])
                 print("output.batch[position_ids]:", output.batch["position_ids"])
-                old_log_probs = self.actor.compute_log_prob(data=output)
+                if output.batch["input_ids"].shape[0] == 0:
+                    response_length = output.batch["responses"].shape[1]
+                    old_log_probs = torch.empty((0, response_length),
+                                                device=output.batch["responses"].device,
+                                                dtype=torch.float32)
+                else:
+                    old_log_probs = self.actor.compute_log_prob(data=output)
                 output.batch['old_log_probs'] = old_log_probs
                 output = self.ulysses_sharding_manager.postprocess_data(output)
 

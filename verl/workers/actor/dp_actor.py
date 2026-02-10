@@ -67,8 +67,17 @@ class DataParallelPPOActor(BasePPOActor):
             batch_size, seqlen = input_ids.shape
             attention_mask = micro_batch['attention_mask']
             position_ids = micro_batch['position_ids']
+            if batch_size == 0:
+                empty = torch.empty((0, response_length), device=input_ids.device, dtype=torch.float32)
+                return empty, empty
 
             if self.use_remove_padding:
+                total_nnz = int(attention_mask.sum().item())
+                if total_nnz <= 0:
+                    # Nothing to score in this micro-batch. Returning an empty tensor
+                    # prevents flash_attn_varlen from receiving an invalid packed batch.
+                    empty = torch.empty((batch_size, response_length), device=input_ids.device, dtype=torch.float32)
+                    return empty, empty
                 input_ids_rmpad, indices, *_ = unpad_input(input_ids.unsqueeze(-1),
                                                            attention_mask)  # input_ids_rmpad (total_nnz, ...)
                 input_ids_rmpad = input_ids_rmpad.transpose(0, 1)  # (1, total_nnz)
@@ -177,6 +186,9 @@ class DataParallelPPOActor(BasePPOActor):
 
         select_keys = ['responses', 'input_ids', 'attention_mask', 'position_ids']
         batch = data.select(batch_keys=select_keys).batch
+        if batch['input_ids'].shape[0] == 0:
+            response_length = batch['responses'].shape[1]
+            return torch.empty((0, response_length), device=batch['responses'].device, dtype=torch.float32)
 
         if use_dynamic_bsz:
             # split using dynamic bsz
@@ -187,9 +199,14 @@ class DataParallelPPOActor(BasePPOActor):
 
         log_probs_lst = []
         for micro_batch in micro_batches:
+            if micro_batch['input_ids'].shape[0] == 0:
+                continue
             with torch.no_grad():
                 _, log_probs = self._forward_micro_batch(micro_batch, temperature=temperature)
             log_probs_lst.append(log_probs)
+        if len(log_probs_lst) == 0:
+            response_length = batch['responses'].shape[1]
+            return torch.empty((0, response_length), device=batch['responses'].device, dtype=torch.float32)
         log_probs = torch.concat(log_probs_lst, dim=0)
 
         if use_dynamic_bsz:
