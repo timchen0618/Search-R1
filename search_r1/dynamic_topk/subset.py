@@ -47,6 +47,7 @@ def main():
     # partition search results based on data subset.
     # HotpotQA(7405), 2WikiMultihopQA(12576), MuSiQue(2417), Bamboogle(125)
     search_results_partitioned = {'hotpotqa': [], '2wikimultihopqa': [], 'musique': [], 'bamboogle': []}
+    subset_size = {'hotpotqa': 7405, '2wikimultihopqa': 12576, 'musique': 2417, 'bamboogle': 125}
     for idx, item in enumerate(search_results):
         if idx < 7405:
             search_results_partitioned['hotpotqa'].append(item)
@@ -84,13 +85,19 @@ def main():
     if len(topks) > 0:
         topks_array = np.array(topks)
         print("=== Aggregated Topk statistics ===")
-        print(f"  Count: {len(topks_array)}")
+        count = len(topks_array)
+        print(f"  Count: {count}")
         print(f"  Min: {np.min(topks_array)}")
         print(f"  Max: {np.max(topks_array)}")
         print(f"  Mean: {np.mean(topks_array):.2f}")
         print(f"  Median: {np.median(topks_array)}")
         print(f"  Std: {np.std(topks_array):.2f}")
         print(f"  Quartiles: {np.percentile(topks_array, [25, 50, 75])}")
+
+        # Compute average count per data (overall)
+        total_data = sum(subset_size.values())
+        avg_count_per_data = count / total_data if total_data > 0 else 0
+        print(f"  Average count per data (all datasets): {avg_count_per_data:.5f}")
 
         # Plot histogram for full dataset
         # Bin topks into [1,2,3,...,10, '>10']
@@ -138,6 +145,10 @@ def main():
                 print(f"  Median: {np.median(subset_topks_arr)}")
                 print(f"  Std: {np.std(subset_topks_arr):.2f}")
                 print(f"  Quartiles: {np.percentile(subset_topks_arr, [25, 50, 75])}")
+                # Compute average count per data for this subset
+                subset_total_data = subset_size.get(subset, 0)
+                avg_count_per_data_subset = len(subset_topks_arr) / subset_total_data if subset_total_data > 0 else 0
+                print(f"  Average count per data (for subset '{subset}'): {avg_count_per_data_subset:.5f}")
 
                 binned_subset_topks = bin_topks(subset_topks)
                 subset_counts = Counter(binned_subset_topks)
