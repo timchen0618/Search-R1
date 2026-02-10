@@ -100,6 +100,8 @@ class DataParallelPPOActor(BasePPOActor):
                 # Fall back to dense forward for stability on those micro-batches.
                 sp_world = max(self.ulysses_sequence_parallel_size, get_ulysses_sequence_parallel_world_size())
                 if self.use_ulysses_sp and total_nnz < sp_world:
+                    print('Fallback to dense forward due to total_nnz < sp_world')
+                    print('total_nnz: ', total_nnz, 'sp_world: ', sp_world)
                     return _dense_forward()
                 input_ids_rmpad, indices, *_ = unpad_input(input_ids.unsqueeze(-1),
                                                            attention_mask)  # input_ids_rmpad (total_nnz, ...)
