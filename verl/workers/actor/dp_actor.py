@@ -27,7 +27,11 @@ from verl.trainer.ppo import core_algos
 from verl.workers.actor import BasePPOActor
 from verl.utils.py_functional import append_to_dict
 from verl.utils.torch_functional import logprobs_from_logits, masked_mean
-from verl.utils.ulysses import ulysses_pad_and_slice_inputs, gather_outpus_and_unpad
+from verl.utils.ulysses import (
+    ulysses_pad_and_slice_inputs,
+    gather_outpus_and_unpad,
+    get_ulysses_sequence_parallel_world_size,
+)
 from verl.utils.seqlen_balancing import rearrange_micro_batches, get_reverse_idx
 import verl.utils.torch_functional as verl_F
 
@@ -62,6 +66,19 @@ class DataParallelPPOActor(BasePPOActor):
             log_probs: # (bs, response_len)
         """
         response_length = micro_batch['responses'].size(-1)
+
+        def _dense_forward():
+            output = self.actor_module(input_ids=input_ids,
+                                       attention_mask=attention_mask,
+                                       position_ids=position_ids,
+                                       use_cache=False)  # prevent model thinks we are generating
+            logits = output.logits
+            logits.div_(temperature)
+            logits = logits[:, -response_length - 1:-1]  # (bsz, response_length)
+            dense_log_probs = logprobs_from_logits(logits, micro_batch['responses'])
+            dense_entropy = verl_F.entropy_from_logits(logits)  # (bsz, response_length)
+            return dense_entropy, dense_log_probs
+
         with torch.autocast(device_type='cuda', dtype=torch.bfloat16):
             input_ids = micro_batch['input_ids']
             batch_size, seqlen = input_ids.shape
@@ -78,6 +95,12 @@ class DataParallelPPOActor(BasePPOActor):
                     # prevents flash_attn_varlen from receiving an invalid packed batch.
                     empty = torch.empty((batch_size, response_length), device=input_ids.device, dtype=torch.float32)
                     return empty, empty
+                # In rare edge cases (especially with sequence parallelism),
+                # packed-token varlen kernels can receive an invalid local batch.
+                # Fall back to dense forward for stability on those micro-batches.
+                sp_world = max(self.ulysses_sequence_parallel_size, get_ulysses_sequence_parallel_world_size())
+                if self.use_ulysses_sp and total_nnz < sp_world:
+                    return _dense_forward()
                 input_ids_rmpad, indices, *_ = unpad_input(input_ids.unsqueeze(-1),
                                                            attention_mask)  # input_ids_rmpad (total_nnz, ...)
                 input_ids_rmpad = input_ids_rmpad.transpose(0, 1)  # (1, total_nnz)
@@ -100,10 +123,15 @@ class DataParallelPPOActor(BasePPOActor):
                 input_ids_rmpad_rolled = input_ids_rmpad_rolled.squeeze(0)  # ((total_nnz / sp) + pad)
 
                 # only pass input_ids and position_ids to enable flash_attn_varlen
-                output = self.actor_module(input_ids=input_ids_rmpad,
-                                           attention_mask=None,
-                                           position_ids=position_ids_rmpad,
-                                           use_cache=False)  # prevent model thinks we are generating
+                try:
+                    output = self.actor_module(input_ids=input_ids_rmpad,
+                                               attention_mask=None,
+                                               position_ids=position_ids_rmpad,
+                                               use_cache=False)  # prevent model thinks we are generating
+                except RuntimeError as e:
+                    if "batch size must be positive" in str(e):
+                        return _dense_forward()
+                    raise
                 logits_rmpad = output.logits.squeeze(0)  # (total_nnz, vocab_size)
 
                 logits_rmpad.div_(temperature)
@@ -137,15 +165,7 @@ class DataParallelPPOActor(BasePPOActor):
                 log_probs = full_log_probs.squeeze(-1)[:, -response_length - 1:-1]  # (bsz, response_length)
 
             else:  # not using rmpad and no ulysses sp
-                output = self.actor_module(input_ids=input_ids,
-                                           attention_mask=attention_mask,
-                                           position_ids=position_ids,
-                                           use_cache=False)  # prevent model thinks we are generating
-                logits = output.logits
-                logits.div_(temperature)
-                logits = logits[:, -response_length - 1:-1]  # (bsz, response_length)
-                log_probs = logprobs_from_logits(logits, micro_batch['responses'])
-                entropy = verl_F.entropy_from_logits(logits)  # (bsz, response_length)
+                entropy, log_probs = _dense_forward()
 
             return entropy, log_probs
 
