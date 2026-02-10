@@ -75,6 +75,13 @@ def main():
             
     for subset, search_results in search_results_partitioned.items():
         print(f'Processing {subset} with {len(search_results)} search results')
+        print('Average num search results', len(search_results) / org_subset_size[subset])
+        
+    print('Average num search results for all subsets', sum(len(search_results) for search_results in search_results_partitioned.values()) / sum(org_subset_size.values()))
+        
+        
+    
+    
         
     # create a subquery to dataset mapping
     subquery_to_dataset = {}
@@ -108,11 +115,6 @@ def main():
         print(f"  Median: {np.median(topks_array)}")
         print(f"  Std: {np.std(topks_array):.2f}")
         print(f"  Quartiles: {np.percentile(topks_array, [25, 50, 75])}")
-
-        # Compute average count per data (overall)
-        total_data = sum(subset_size.values())
-        avg_count_per_data = count / total_data if total_data > 0 else 0
-        print(f"  Average count per data (all datasets): {avg_count_per_data:.5f}")
 
         # Plot histogram for full dataset
         # Bin topks into [1,2,3,...,10, '>10']
@@ -160,10 +162,6 @@ def main():
                 print(f"  Median: {np.median(subset_topks_arr)}")
                 print(f"  Std: {np.std(subset_topks_arr):.2f}")
                 print(f"  Quartiles: {np.percentile(subset_topks_arr, [25, 50, 75])}")
-                # Compute average count per data for this subset
-                subset_total_data = subset_size.get(subset, 0)
-                avg_count_per_data_subset = len(subset_topks_arr) / subset_total_data if subset_total_data > 0 else 0
-                print(f"  Average count per data (for subset '{subset}'): {avg_count_per_data_subset:.5f}")
 
                 binned_subset_topks = bin_topks(subset_topks)
                 subset_counts = Counter(binned_subset_topks)
