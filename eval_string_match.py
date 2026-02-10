@@ -72,7 +72,7 @@ def parse_output(file_path, ground_truths, _print=False, num_examples=None):
         ## Check question mismatch
         data_question = ground_truths[idx]['question']
         question = extract_question(trajectory)
-        assert question.strip('?') == data_question.strip('?'), f'Question mismatch: {question} != {data_question}'
+        assert question.strip().strip('?').strip() == data_question.strip().strip('?').strip(), f'Question mismatch: {question} != {data_question}'
 
         # Compute scores
         inst_scores = [compute_score_em(trajectory, {"target": gold_answer}) for gold_answer in answer_list]
