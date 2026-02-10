@@ -40,6 +40,7 @@ def main():
     args = parser.parse_args()
         
     TOPK = 50
+    num_queries_per_inst = read_jsonl(os.path.join(args.exp_data_path, 'num_queries_per_inst.jsonl'))
     
     print('[WARNING] Search results already exist, skipping retrieval and collecting subqueries')
     search_results = read_jsonl(os.path.join(args.exp_data_path, 'test_outputs_with_search_results.jsonl'))
@@ -47,13 +48,27 @@ def main():
     # partition search results based on data subset.
     # HotpotQA(7405), 2WikiMultihopQA(12576), MuSiQue(2417), Bamboogle(125)
     search_results_partitioned = {'hotpotqa': [], '2wikimultihopqa': [], 'musique': [], 'bamboogle': []}
-    subset_size = {'hotpotqa': 7405, '2wikimultihopqa': 12576, 'musique': 2417, 'bamboogle': 125}
-    for idx, item in enumerate(search_results):
+    org_subset_size = {'hotpotqa': 7405, '2wikimultihopqa': 12576, 'musique': 2417, 'bamboogle': 125}
+    subset_size = {subset: 0 for subset in org_subset_size}
+    
+    for idx, item in enumerate(num_queries_per_inst):
         if idx < 7405:
+            subset_size['hotpotqa'] += item['num_queries']
+        elif idx < (7405 + 12576):
+            subset_size['2wikimultihopqa'] += item['num_queries']
+        elif idx < (7405 + 12576 + 2417):
+            subset_size['musique'] += item['num_queries']
+        else:
+            subset_size['bamboogle'] += item['num_queries']
+            
+    print('subset size: ', subset_size)
+    
+    for idx, item in enumerate(search_results):
+        if idx < subset_size['hotpotqa']:
             search_results_partitioned['hotpotqa'].append(item)
-        elif idx < 7405 + 12576:
+        elif idx < subset_size['2wikimultihopqa'] + subset_size['hotpotqa']:
             search_results_partitioned['2wikimultihopqa'].append(item)
-        elif idx < 7405 + 12576 + 2417:
+        elif idx < subset_size['musique'] + subset_size['2wikimultihopqa'] + subset_size['hotpotqa']:
             search_results_partitioned['musique'].append(item)
         else:
             search_results_partitioned['bamboogle'].append(item)
