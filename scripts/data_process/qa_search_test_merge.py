@@ -62,9 +62,10 @@ if __name__ == '__main__':
         if data_source != 'strategyqa':
             if data_source in ['qampari']:
                 data_repo = 'timchen0618/qampari_agentic'
+                dataset = datasets.load_dataset(data_repo)
             else:
                 data_repo = 'RUC-NLPIR/FlashRAG_datasets'
-            dataset = datasets.load_dataset(data_repo, data_source)
+                dataset = datasets.load_dataset(data_repo, data_source)
         else:
             dataset = datasets.load_dataset('json', data_files="/home/peterjin/mnt/data/strategyqa/test_correct.jsonl")
 
