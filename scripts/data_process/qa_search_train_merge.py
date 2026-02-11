@@ -59,8 +59,11 @@ if __name__ == '__main__':
     all_dataset = []
 
     for data_source in data_sources:
-
-        dataset = datasets.load_dataset('RUC-NLPIR/FlashRAG_datasets', data_source)
+        if data_source in ['qampari']:
+            data_repo = 'timchen0618/qampari_agentic'
+        else:
+            data_repo = 'RUC-NLPIR/FlashRAG_datasets'
+        dataset = datasets.load_dataset(data_repo, data_source)
 
         train_dataset = dataset['train']
 
