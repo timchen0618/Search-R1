@@ -5,7 +5,7 @@ retriever_name="qwen3-8b" # this is for indexing naming
 
 if [ "$retriever_name" == "qwen3-0.6b" ]; then
     retriever_model="Qwen/Qwen3-Embedding-0.6B"
-if [ "$retriever_name" == "qwen3-8b" ]; then
+elif [ "$retriever_name" == "qwen3-8b" ]; then
     retriever_model="Qwen/Qwen3-Embedding-8B"
 elif [ "$retriever_name" == "infly" ]; then
     retriever_model="infly/inf-retriever-v1-1.5b"
