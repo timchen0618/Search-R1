@@ -1,7 +1,7 @@
 
 file_path=/scratch/hc3337/bcp_searchr1
 
-retriever_name=qwen3-8b
+retriever_name=$1
 index_file=$file_path/${retriever_name}_Flat.index
 corpus_file=$file_path/browsecomp_plus_corpus.jsonl
 
@@ -23,4 +23,5 @@ python search_r1/search/retrieval_server.py --index_path $index_file \
                                             --topk 3 \
                                             --retriever_name $retriever_name \
                                             --retriever_model $retriever_model \
-                                            --faiss_gpu
+                                            --faiss_gpu \
+                                            --port $2
