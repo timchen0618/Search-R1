@@ -23,7 +23,6 @@ from verl.utils.hdfs_io import copy, makedirs
 import argparse
 
 
-    
 def make_prefix(dp, template_type):
     question = dp['question']
 
@@ -41,16 +40,58 @@ If you find no further external knowledge needed, you can directly provide the a
     After reasoning, if you find you lack some knowledge, you can call a search engine by <search topk=N> query </search> and it will return the top-N searched results between <information> and </information>. Please always specify the topk value, which is an integer between 1 and 10. \
     You can search as many times as your want. \
     If you find one answer from the documents, you can directly provide the answer inside <answer> and </answer>, without detailed illustrations. For example, <answer> Beijing </answer>. Question: {question}\n"""
+    elif template_type == 'bcp':
+        prefix = f"""You are a deep research assistant. Your core function is to conduct thorough, multi-source investigations into any topic. You must handle both broad, open-domain inquiries and queries within specialized academic fields. For every request, synthesize information from credible, diverse sources to deliver a comprehensive, accurate, and objective response. When you have gathered sufficient information and are ready to provide the definitive response, you must enclose the entire final answer within <answer></answer> tags.
+
+        # Tools
+
+        You may call the search tool one or multiple times to assist with the user query. You can call the search tool by <search> query </search> and it will return the top searched results between <information> and </information>. You can search as many times as your want.
+
+        Question: {question}\n"""
     else:
         raise NotImplementedError
     return prefix
 
+# add a row to each data item that represents a unique id
+def make_map_fn(split):
 
+    def process_fn(example, idx):
+        example['question'] = example['query'].strip()
+        if example['question'][-1] != '?':
+            example['question'] += '?'
+        question = make_prefix(example, template_type=args.template_type)
+        solution = {
+            "target": example['answer'],
+        }
+
+        data = {
+            "data_source": data_source,
+            "prompt": [{
+                "role": "user",
+                "content": question,
+            }],
+            "ability": "fact-reasoning",
+            "reward_model": {
+                "style": "rule",
+                "ground_truth": solution
+            },
+            "extra_info": {
+                'split': split,
+                'index': idx,
+            }
+        }
+        return data
+
+    return process_fn
+    
+    
+    
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
     parser.add_argument('--local_dir', default='./data/bcp_search')
     parser.add_argument('--hdfs_dir', default=None)
     parser.add_argument('--template_type', type=str, default='base')
+    parser.add_argument('--train_test_split', action='store_true')
 
     args = parser.parse_args()
 
@@ -58,51 +99,22 @@ if __name__ == '__main__':
 
     dataset = datasets.load_dataset("json", data_files="/scratch/hc3337/projects/BrowseComp-Plus/data/browsecomp_plus_decrypted.jsonl")['train']
 
-    full_dataset = dataset.train_test_split(test_size=0.2)
-    train_dataset = full_dataset['train']
-    test_dataset = full_dataset['test']
+    if args.train_test_split:
+        full_dataset = dataset.train_test_split(test_size=0.2)
+        train_dataset = full_dataset['train']
+        test_dataset = full_dataset['test']
+    else:
+        test_dataset = dataset
     
-    # test_dataset = dataset['test']
-
-    # add a row to each data item that represents a unique id
-    def make_map_fn(split):
-
-        def process_fn(example, idx):
-            example['question'] = example['query'].strip()
-            if example['question'][-1] != '?':
-                example['question'] += '?'
-            question = make_prefix(example, template_type=args.template_type)
-            solution = {
-                "target": example['answer'],
-            }
-
-            data = {
-                "data_source": data_source,
-                "prompt": [{
-                    "role": "user",
-                    "content": question,
-                }],
-                "ability": "fact-reasoning",
-                "reward_model": {
-                    "style": "rule",
-                    "ground_truth": solution
-                },
-                "extra_info": {
-                    'split': split,
-                    'index': idx,
-                }
-            }
-            return data
-
-        return process_fn
-
-    train_dataset = train_dataset.map(function=make_map_fn('train'), with_indices=True)
+    if args.train_test_split:
+        train_dataset = train_dataset.map(function=make_map_fn('train'), with_indices=True)
     test_dataset = test_dataset.map(function=make_map_fn('test'), with_indices=True)
 
     local_dir = args.local_dir
     hdfs_dir = args.hdfs_dir
 
-    train_dataset.to_parquet(os.path.join(local_dir, f'train_{args.template_type}.parquet'))
+    if args.train_test_split:
+        train_dataset.to_parquet(os.path.join(local_dir, f'train_{args.template_type}.parquet'))
     test_dataset.to_parquet(os.path.join(local_dir, f'test_{args.template_type}.parquet'))
 
     if hdfs_dir is not None:
