@@ -35,4 +35,4 @@ python search_r1/search/retrieval_server.py --index_path $index_file \
                                             --retriever_model $retriever_path \
                                             --pooling_method $pooling_method \
 					                        --faiss_gpu \
-                                            --port $1
+                                            --port $2
