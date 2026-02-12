@@ -46,6 +46,14 @@ def prepare_prompt(question, template_type='dynamic'):
         After reasoning, if you find you lack some knowledge, you can call a search engine by <search> query </search> and it will return the top searched results between <information> and </information>. \
         You can search as many times as your want. \
         If you find no further external knowledge needed, you can directly provide the answer inside <answer> and </answer>, without detailed illustrations. For example, <answer> Beijing </answer>. Question: {question}\n"""
+    elif template_type == 'bcp':
+        return f"""You are a deep research assistant. Your core function is to conduct thorough, multi-source investigations into any topic. You must handle both broad, open-domain inquiries and queries within specialized academic fields. For every request, synthesize information from credible, diverse sources to deliver a comprehensive, accurate, and objective response. When you have gathered sufficient information and are ready to provide the definitive response, you must enclose the entire final answer within <answer></answer> tags.
+
+        # Tools
+
+        You may call the search tool one or multiple times to assist with the user query. You can call the search tool by <search> query </search> and it will return the top searched results between <information> and </information>. You can search as many times as your want.
+
+        Question: {question}\n"""
 
 # # Prepare the message
 # prompt = f"""Answer the given question. \
