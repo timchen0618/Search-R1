@@ -181,7 +181,7 @@ def main(args):
             questions = [item['question'] for item in dataset['dev']]
     else:
         raw_data = read_jsonl(args.data_path)
-        questions = [item['question_text'] for item in raw_data]
+        questions = [item['question_text'] if 'question_text' in item else item['query'] for item in raw_data]
         if os.path.exists(args.output_file):
             questions = questions[len(read_jsonl(args.output_file)):]
             print(f"Skipping {len(read_jsonl(args.output_file))} questions")
