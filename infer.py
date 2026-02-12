@@ -279,7 +279,7 @@ def main(args):
             search_text = curr_search_template.format(output_text=output_text, search_results=search_results_text)
             prompt += search_text
             cnt += 1
-            if cnt > 10:
+            if cnt > args.max_count:
                 break
             # print(search_text)
 
@@ -304,5 +304,6 @@ if __name__ == "__main__":
     parser.add_argument("--template_type", type=str, default="base", choices=["base", "dynamic"])
     parser.add_argument("--data_path", type=str, default="/scratch/hc3337/projects/diverse_response/data/qampari_data/dev_data_gt_qampari_corpus.jsonl")
     parser.add_argument("--port", type=int, default=8000)
+    parser.add_argument("--max_count", type=int, default=10)
     args = parser.parse_args()
     main(args)
