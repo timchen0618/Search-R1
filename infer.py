@@ -125,7 +125,10 @@ def get_query(text):
     if matches:
         match = matches[-1]
         print(f'MATCH: {match} | length: {len(matches)}')
-        return match[2].strip(), int(match[1])
+        if match[1].isdigit():
+            return match[2].strip(), int(match[1])
+        else:
+            return match[2].strip(), None
     else:
         return None, None
 
