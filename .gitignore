@@ -123,3 +123,9 @@ tests/e2e/toy_examples/deepspeed/synchronous/output.txt
 log/
 
 **logs
+
+
+outputs_fanoutqa/
+outputs_webqsp
+*.SBATCH
+verl_checkpoints

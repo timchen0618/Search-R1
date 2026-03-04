@@ -122,11 +122,7 @@ conda activate retriever
 bash retrieval_launch.sh
 ```
 
-<<<<<<< HEAD
 (4) Run RL training (PPO) with Llama-3.2-3b-base.
-=======
-(4) Run training with Qwen2.5-3b-Instruct.
->>>>>>> 9ec1d08 (Initial commit)
 ```bash
 conda activate searchr1
 bash train_ppo.sh
