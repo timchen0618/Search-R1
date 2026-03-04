@@ -1,5 +1,5 @@
 export CUDA_VISIBLE_DEVICES=0,1,2,3
-export data_name='musique'
+export data_name='qampari'
 export DATA_DIR=data/${data_name}
 export N_GPUS=4
 
@@ -8,11 +8,11 @@ WAND_PROJECT='Search-R1'
 export MAX_TURN=5
 export epoch=15
 export BASE_MODEL='Qwen/Qwen2.5-3B-Instruct'
-export MAX_STEPS=570
+export MAX_STEPS=900
 export TOPK=3
 
 # export BASE_MODEL='meta-llama/Llama-3.2-3B'
-export EXPERIMENT_NAME=musique-ppo-qwen2.5-3b-instruct-em_base_topk${TOPK}_maxturns${MAX_TURN}_seed0    
+export EXPERIMENT_NAME=qampari-ppo-qwen2.5-3b-instruct-em_base_topk${TOPK}_maxturns${MAX_TURN}_seed0    
 
 
 # set -x
@@ -32,7 +32,7 @@ PYTHONUNBUFFERED=1 python3 -m verl.trainer.main_ppo \
     data.max_prompt_length=8192 \
     data.max_response_length=1024 \
     data.max_start_length=2048 \
-    data.max_obs_length=1024 \
+    data.max_obs_length=1000 \
     data.shuffle_train_dataloader=True \
     algorithm.adv_estimator=gae \
     actor_rollout_ref.model.path=$BASE_MODEL \
@@ -48,7 +48,7 @@ PYTHONUNBUFFERED=1 python3 -m verl.trainer.main_ppo \
     actor_rollout_ref.rollout.log_prob_micro_batch_size=64 \
     actor_rollout_ref.rollout.tensor_model_parallel_size=1 \
     actor_rollout_ref.rollout.name=vllm \
-    actor_rollout_ref.rollout.gpu_memory_utilization=0.9 \
+    actor_rollout_ref.rollout.gpu_memory_utilization=0.95 \
     actor_rollout_ref.ref.log_prob_micro_batch_size=32 \
     actor_rollout_ref.ref.fsdp_config.param_offload=True \
     actor_rollout_ref.rollout.n_agent=1 \
