@@ -59,7 +59,7 @@ def extract_judgement(response):
 
 ###########################################################################
 
-class LLMJudgeRewardManager:
+class LLMJudgeRewardManagerGemini:
     """The reward manager.
     """
 

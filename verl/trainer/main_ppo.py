@@ -193,9 +193,12 @@ def main_task(config, compute_score=None):
     if reward_manager_name == 'naive':
         from verl.workers.reward_manager import NaiveRewardManager
         reward_manager_cls = NaiveRewardManager
-    elif reward_manager_name == 'llm_judge':
-        from verl.workers.reward_manager.llm_judge_batch import LLMJudgeRewardManager
-        reward_manager_cls = LLMJudgeRewardManager
+    elif reward_manager_name == 'llm_judge_gemini':
+        from verl.workers.reward_manager.llm_judge_gemini import LLMJudgeRewardManagerGemini
+        reward_manager_cls = LLMJudgeRewardManagerGemini
+    elif reward_manager_name == 'llm_judge_vllm':
+        from verl.workers.reward_manager.llm_judge_vllm import LLMJudgeRewardManagerVLLM
+        reward_manager_cls = LLMJudgeRewardManagerVLLM
     else:
         raise NotImplementedError(f"Reward manager {reward_manager_name} is not implemented.")
 
