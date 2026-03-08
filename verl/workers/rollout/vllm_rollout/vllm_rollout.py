@@ -144,6 +144,7 @@ class vLLMRollout(BaseRollout):
     def generate_sequences(self, prompts: DataProto, **kwargs) -> DataProto:
         # rebuild vllm cache engine
         if self.config.free_cache_engine:
+            torch.cuda.empty_cache()
             self.inference_engine.init_cache_engine()
 
         idx = prompts.batch['input_ids']  # (bs, prompt_length)

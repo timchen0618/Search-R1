@@ -146,7 +146,7 @@ class LLMGenerationManager:
                           cur_responses: torch.Tensor,
                           next_obs_ids: torch.Tensor = None) -> Dict:
         """Update right side state."""
-        if next_obs_ids != None:
+        if next_obs_ids is not None:
             responses, responses_with_info_mask = self._info_masked_concatenate_with_padding(
                     right_side['responses'],
                     right_side['responses_with_info_mask'],

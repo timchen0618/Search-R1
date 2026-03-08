@@ -109,7 +109,7 @@ def main(config):
         os.environ['TOKENIZERS_PARALLELISM'] = 'true'
         os.environ['NCCL_DEBUG'] = 'WARN'
         # ray.init(runtime_env={'env_vars': {'TOKENIZERS_PARALLELISM': 'true', 'NCCL_DEBUG': 'WARN'}})
-        ray.init(num_cpus=6)
+        ray.init(num_cpus=8)
 
     ray.get(main_task.remote(config))
 
