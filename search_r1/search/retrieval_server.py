@@ -37,12 +37,18 @@ def load_docs(corpus, doc_idxs):
 
 def load_model(model_path: str, use_fp16: bool = False):
     model_config = AutoConfig.from_pretrained(model_path, trust_remote_code=True)
-    model = AutoModel.from_pretrained(model_path, trust_remote_code=True)
+    if 'iterative_retrieval' in model_path:
+        model = AutoModel.from_pretrained(model_path)
+    else:
+        model = AutoModel.from_pretrained(model_path, trust_remote_code=True)
     model.eval()
     model.cuda()
     if use_fp16: 
         model = model.half()
-    tokenizer = AutoTokenizer.from_pretrained(model_path, use_fast=True, trust_remote_code=True)
+    if 'iterative_retrieval' in model_path:
+        tokenizer = AutoTokenizer.from_pretrained(model_path, use_fast=True)
+    else:
+        tokenizer = AutoTokenizer.from_pretrained(model_path, use_fast=True, trust_remote_code=True)
     return model, tokenizer
 
 def pooling(
@@ -58,6 +64,14 @@ def pooling(
         return last_hidden_state[:, 0]
     elif pooling_method == "pooler":
         return pooler_output
+    elif pooling_method == "last":
+        left_padding = (attention_mask[:, -1].sum() == attention_mask.shape[0])
+        if left_padding:
+            return last_hidden_state[:, -1]
+        else:
+            sequence_lengths = attention_mask.sum(dim=1) - 1
+            batch_size = last_hidden_state.shape[0]
+            return last_hidden_state[torch.arange(batch_size, device=last_hidden_state.device), sequence_lengths]
     else:
         raise NotImplementedError("Pooling method not implemented!")
 
@@ -107,7 +121,7 @@ class Encoder:
             query_emb = output.last_hidden_state[:, 0, :]
         else:
             output = self.model(**inputs, return_dict=True)
-            query_emb = pooling(output.pooler_output,
+            query_emb = pooling(output.pooler_output if self.pooling_method == "pooler" else None, 
                                 output.last_hidden_state,
                                 inputs['attention_mask'],
                                 self.pooling_method)
@@ -367,6 +381,7 @@ if __name__ == "__main__":
     parser.add_argument("--retriever_name", type=str, default="e5", help="Name of the retriever model.")
     parser.add_argument("--retriever_model", type=str, default="intfloat/e5-base-v2", help="Path of the retriever model.")
     parser.add_argument('--faiss_gpu', action='store_true', help='Use GPU for computation')
+    parser.add_argument('--pooling_method', type=str, default="mean", help="Pooling method for the retriever.")
     parser.add_argument('--port', type=int, default=8000, help='Port to listen on')
 
     args = parser.parse_args()
@@ -380,7 +395,7 @@ if __name__ == "__main__":
         retrieval_topk=args.topk,
         faiss_gpu=args.faiss_gpu,
         retrieval_model_path=args.retriever_model,
-        retrieval_pooling_method="mean",
+        retrieval_pooling_method=args.pooling_method,
         retrieval_query_max_length=256,
         retrieval_use_fp16=True,
         retrieval_batch_size=512,
