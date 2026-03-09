@@ -10,6 +10,7 @@ export epoch=15
 export BASE_MODEL='Qwen/Qwen2.5-3B-Instruct'
 export MAX_STEPS=570
 export TOPK=3
+export GPU_MEMORY_UTILIZATION=0.9
 
 # export BASE_MODEL='meta-llama/Llama-3.2-3B'
 export EXPERIMENT_NAME=musique-ppo-qwen2.5-3b-instruct-em_base_topk${TOPK}_maxturns${MAX_TURN}_seed0    
@@ -48,7 +49,7 @@ PYTHONUNBUFFERED=1 python3 -m verl.trainer.main_ppo \
     actor_rollout_ref.rollout.log_prob_micro_batch_size=64 \
     actor_rollout_ref.rollout.tensor_model_parallel_size=1 \
     actor_rollout_ref.rollout.name=vllm \
-    actor_rollout_ref.rollout.gpu_memory_utilization=0.9 \
+    actor_rollout_ref.rollout.gpu_memory_utilization=$GPU_MEMORY_UTILIZATION \
     actor_rollout_ref.ref.log_prob_micro_batch_size=32 \
     actor_rollout_ref.ref.fsdp_config.param_offload=True \
     actor_rollout_ref.rollout.n_agent=1 \
