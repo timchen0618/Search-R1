@@ -2,11 +2,34 @@ from verl import DataProto
 from verl.utils.reward_score import _default_compute_score
 import torch
 import re
-from vllm import LLM
-from vllm import SamplingParams
+from tqdm import tqdm
+from openai import OpenAI
 from .prompts import LLM_AS_A_JUDGE_PRMOPT
+from tenacity import (
+    retry,
+    stop_after_attempt,
+    wait_random_exponential,
+    retry_if_exception_type
+)
+import concurrent.futures
+
 
 ################## helper functions, to be moved #####################
+
+@retry(
+    wait=wait_random_exponential(multiplier=2, max=60),
+    stop=stop_after_attempt(10),
+)
+def call_vllm_api(client, model_name, prompt, max_output_tokens=512, temperature=0.2, top_p=0.95):
+    """Call the vLLM server via OpenAI-compatible API to generate content."""
+    response = client.chat.completions.create(
+        model=model_name,
+        messages=[{"role": "user", "content": prompt}],
+        max_tokens=max_output_tokens,
+        temperature=temperature,
+        top_p=top_p,
+    )
+    return response.choices[0].message.content or ""
 
 
 def extract_solution(solution_str):
@@ -38,14 +61,17 @@ class LLMJudgeRewardManagerVLLM:
 
     def __init__(self, 
                  tokenizer, 
+                 server_url="http://127.0.0.1:8001/v1",
                  model_name='Qwen/Qwen3-32B',
-                 num_examine=0, compute_score=None, tensor_parallel_size=4, gpu_memory_utilization=0.3) -> None:
+                 api_key='EMPTY',
+                 max_worker=16,
+                 num_examine=0, compute_score=None) -> None:
         self.tokenizer = tokenizer
         self.num_examine = num_examine  # the number of batches of decoded responses to print to the console
         self.compute_score = compute_score or _default_compute_score
         self.model_name = model_name
-        self.vllm_engine = LLM(model=model_name, tensor_parallel_size=tensor_parallel_size, gpu_memory_utilization=gpu_memory_utilization)
-        self.sampling_params = SamplingParams(max_tokens=512, temperature=0.0, top_p=0.95)
+        self.max_worker = max_worker
+        self.client = OpenAI(base_url=server_url, api_key=api_key)
 
     def __call__(self, data: DataProto):
         """We will expand this function gradually based on the available datasets"""
@@ -67,9 +93,26 @@ class LLMJudgeRewardManagerVLLM:
         batch_input_for_reward = [{'response_str': batch_response_str[i],
                                   'question': data.non_tensor_batch['question'][i],
                                   'gold_answer': data.non_tensor_batch['reward_model'][i]['ground_truth']['target']} for i in range(bsz)]
+        
+        # update reward tensor with validity
+        with concurrent.futures.ThreadPoolExecutor(max_workers=self.max_worker) as executor:
+            future_to_idx = {
+                executor.submit(self.get_reward, input_for_reward): idx for idx, input_for_reward in enumerate(batch_input_for_reward)
+            }
+        
+        result = []
+        for future in tqdm(concurrent.futures.as_completed(future_to_idx), total=len(future_to_idx), desc="Computing rewards"):
+            idx = future_to_idx[future]
+            try:
+                reward = future.result()
+                result.append((idx, reward))
+            except Exception as e:
+                print(f"Error processing index {idx}: {e}")
+                result.append((idx, 0.0))
+        # sort the results by index
+        result = [reward for (idx, reward) in sorted(result, key=lambda x: x[0])]
 
-        # Batched vLLM inference: build prompts and run single generate call
-        reward_score = self._compute_rewards_batched(batch_input_for_reward)
+        reward_score = torch.tensor(result, dtype=torch.float32)
         print(f">> Computed rewards: {torch.mean(reward_score).item():.4f}")
         # if self.num_examine > 0:
         # print one randomly selected response and their reward
@@ -82,53 +125,49 @@ class LLMJudgeRewardManagerVLLM:
         return reward_tensor
 
 
-    def _compute_rewards_batched(self, batch_input_for_reward):
+    def get_llm_as_a_judge_result(self, question, gold_answer, model_answer, temperature, max_output_tokens):
         """
-        Compute rewards via batched vLLM inference. Builds all judge prompts,
-        runs a single generate call, then extracts judgements.
+        Call the vLLM server API to judge the answer.
         """
-        bsz = len(batch_input_for_reward)
-        reward_score = torch.zeros(bsz, dtype=torch.float32)
-
-        # Build prompts and track which indices need judging
-        prompts_to_judge = []
-        indices_to_judge = []
-        for idx, item in enumerate(batch_input_for_reward):
-            answer = extract_solution(item['response_str'])
-            if answer is None:
-                reward_score[idx] = 0.0
-            else:
-                prompt = LLM_AS_A_JUDGE_PRMOPT.format(
-                    question=item['question'],
-                    model_answer=answer,
-                    gold_answer=item['gold_answer']
-                )
-                prompts_to_judge.append(prompt)
-                indices_to_judge.append(idx)
-
-        if not prompts_to_judge:
-            return reward_score
-
-        # Single batched vLLM generate call
-        outputs = self.vllm_engine.generate(
-            prompts_to_judge,
-            self.sampling_params,
-            use_tqdm=False,
+        llm_as_a_judge_prompt = LLM_AS_A_JUDGE_PRMOPT.format(
+            question=question,
+            model_answer=model_answer,
+            gold_answer=gold_answer
         )
 
-        # Extract judgements and assign rewards
-        for i, (idx, output) in enumerate(zip(indices_to_judge, outputs)):
-            text = output.outputs[0].text
-            judgement = extract_judgement(text)
-            if judgement is None:
-                print(f"Judgement is None for index {idx}")
-                reward_score[idx] = 0.0
-            elif judgement == 'yes':
-                reward_score[idx] = 1.0
-            elif judgement == 'no':
-                reward_score[idx] = 0.0
-            else:
-                print(f"Unexpected judgement: {judgement} for index {idx}")
-                reward_score[idx] = 0.0
+        llm_as_a_judge_response = call_vllm_api(client=self.client,
+            model_name=self.model_name,
+            prompt=llm_as_a_judge_prompt,
+            temperature=temperature,
+            max_output_tokens=max_output_tokens,
+        )
 
-        return reward_score
+        judgement = extract_judgement(llm_as_a_judge_response)
+        return llm_as_a_judge_response, judgement
+
+    def get_reward(self, processed_data):
+        response_str = processed_data['response_str']
+        answer = extract_solution(response_str)
+        # print(f"Model answer: {answer}")
+        # print(f"Question: {processed_data['question']}",
+        #       f"\nGold Answer: {processed_data['gold_answer']}")
+        if answer is None:
+            return 0.0
+        else:
+            response, judgement = self.get_llm_as_a_judge_result(
+                question=processed_data['question'],
+                gold_answer=processed_data['gold_answer'],
+                model_answer=response_str,
+                temperature=0.0,
+                max_output_tokens=512
+            )
+            if judgement is None:
+                print(f"Judgement is None for response: {response_str}")
+                return 0.0
+            elif judgement == 'yes':
+                return 1.0
+            elif judgement == 'no':
+                return 0.0
+            else:
+                print(f"Unexpected judgement: {judgement} for response: {response_str}")
+                return 0.0

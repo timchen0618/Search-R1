@@ -14,4 +14,5 @@
 
 from .naive import NaiveRewardManager
 from .prime import PrimeRewardManager
-from .llm_judge_batch import LLMJudgeRewardManager
+# from .llm_judge_gemini import LLMJudgeRewardManagerGemini
+from .llm_judge_vllm import LLMJudgeRewardManagerVLLM

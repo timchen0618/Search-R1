@@ -193,19 +193,32 @@ def main_task(config, compute_score=None):
     if reward_manager_name == 'naive':
         from verl.workers.reward_manager import NaiveRewardManager
         reward_manager_cls = NaiveRewardManager
+        reward_manager_kwargs = {}
     elif reward_manager_name == 'llm_judge_gemini':
         from verl.workers.reward_manager.llm_judge_gemini import LLMJudgeRewardManagerGemini
         reward_manager_cls = LLMJudgeRewardManagerGemini
+        reward_manager_kwargs = {}
     elif reward_manager_name == 'llm_judge_vllm':
+        print(f"Using llm_judge_vllm with server_url: {config.reward_model.get('llm_judge_server_url', 'http://127.0.0.1:8000/v1')}, model_name: {config.reward_model.get('llm_judge_model', 'Qwen/Qwen3-32B')}, api_key: {config.reward_model.get('llm_judge_api_key', 'EMPTY')}, max_worker: {config.reward_model.get('llm_judge_max_workers', 16)}")
         from verl.workers.reward_manager.llm_judge_vllm import LLMJudgeRewardManagerVLLM
         reward_manager_cls = LLMJudgeRewardManagerVLLM
+        reward_manager_kwargs = {
+            "server_url": config.reward_model.get("llm_judge_server_url", "http://127.0.0.1:8000/v1"),
+            "model_name": config.reward_model.get("llm_judge_model", "Qwen/Qwen3-32B"),
+            "api_key": config.reward_model.get("llm_judge_api_key", "EMPTY"),
+            "max_worker": config.reward_model.get("llm_judge_max_workers", 16),
+        }
     else:
         raise NotImplementedError(f"Reward manager {reward_manager_name} is not implemented.")
 
-    reward_fn = reward_manager_cls(tokenizer=tokenizer, num_examine=0, compute_score=compute_score)
+    reward_fn = reward_manager_cls(
+        tokenizer=tokenizer, num_examine=0, compute_score=compute_score, **reward_manager_kwargs
+    )
 
     # Note that we always use function-based RM for validation
-    val_reward_fn = reward_manager_cls(tokenizer=tokenizer, num_examine=1, compute_score=compute_score)
+    val_reward_fn = reward_manager_cls(
+        tokenizer=tokenizer, num_examine=1, compute_score=compute_score, **reward_manager_kwargs
+    )
 
     resource_pool_manager = ResourcePoolManager(resource_pool_spec=resource_pool_spec, mapping=mapping)
     trainer = RayPPOTrainer(config=config,

@@ -13,8 +13,30 @@
 # limitations under the License.
 from . import qa_em
 
-def _default_compute_score(data_source):
+def _default_compute_score(data_source, solution_str, ground_truth, extra_info=None):
     if data_source in ['nq', 'triviaqa', 'popqa', 'hotpotqa', '2wikimultihopqa', 'musique', 'bamboogle', 'qampari']:
-        return qa_em.compute_score_em
+        return qa_em.compute_score_em(solution_str, ground_truth)
     else:
         raise NotImplementedError
+    
+    
+    
+# def _default_compute_score(data_source, solution_str, ground_truth, extra_info=None):
+#     if data_source == 'openai/gsm8k':
+#         from . import gsm8k
+#         res = gsm8k.compute_score(solution_str, ground_truth)
+#     elif data_source in ['lighteval/MATH', 'DigitalLearningGmbH/MATH-lighteval']:
+#         from . import math
+#         res = math.compute_score(solution_str, ground_truth)
+#     elif data_source in ['nq', 'triviaqa', 'popqa', 'hotpotqa', '2wikimultihopqa', 'musique', 'bamboogle', 'synthetic']:
+#         from . import qa_em
+#         res = qa_em.compute_score_em(solution_str, ground_truth)
+#     else:
+#         # overwride this for now
+#         from . import qa_em
+#         res = qa_em.compute_score_em(solution_str, ground_truth)
+
+#     if isinstance(res, (int, float, bool)):
+#         return float(res)
+#     else:
+#         return float(res[0])

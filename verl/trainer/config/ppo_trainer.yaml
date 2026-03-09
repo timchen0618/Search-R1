@@ -128,6 +128,7 @@ critic:
 reward_model:
   enable: False
   strategy: fsdp
+  
   model:
     input_tokenizer: ${actor_rollout_ref.model.path}  # set this to null if the chat template is identical
     path: ~/models/FsfairX-LLaMA3-RM-v0.1
@@ -145,6 +146,11 @@ reward_model:
   final_format_score: 0
   retrieval_score: 0
   reward_manager: naive
+  # For llm_judge_vllm: remote vLLM server (OpenAI-compatible API)
+  llm_judge_server_url: "http://127.0.0.1:8000/v1"
+  llm_judge_model: "Qwen/Qwen3-32B"
+  llm_judge_api_key: "EMPTY"
+  llm_judge_max_workers: 16
 
 retriever:
   url: "http://127.0.0.1:8000/retrieve"
