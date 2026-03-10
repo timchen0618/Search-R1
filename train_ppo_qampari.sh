@@ -10,10 +10,11 @@ export epoch=15
 export BASE_MODEL='Qwen/Qwen2.5-3B-Instruct'
 export MAX_STEPS=900
 export TOPK=3
-export GPU_MEMORY_UTILIZATION=0.95 # 0.95 for exact match, 0.8 for llm_judge_vllm
+export GPU_MEMORY_UTILIZATION=0.99 # 0.95 for exact match, 0.8 for llm_judge_vllm
 
 # export BASE_MODEL='meta-llama/Llama-3.2-3B'
-export EXPERIMENT_NAME=qampari-ppo-qwen2.5-3b-instruct-em_base_topk${TOPK}_maxturns${MAX_TURN}_seed0
+retriever=$2
+export EXPERIMENT_NAME=qampari-ppo-qwen2.5-3b-instruct-em_base_topk${TOPK}_maxturns${MAX_TURN}_${retriever}
 
 
 # set -x
