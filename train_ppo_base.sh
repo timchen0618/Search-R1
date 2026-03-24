@@ -5,7 +5,7 @@ export N_GPUS=4
 
 WAND_PROJECT='Search-R1'
 
-export MAX_TURN=2
+export MAX_TURN=5
 export epoch=15
 export BASE_MODEL='Qwen/Qwen2.5-3B-Instruct'
 export MAX_STEPS=570
@@ -13,7 +13,7 @@ export TOPK=3
 export GPU_MEMORY_UTILIZATION=0.9
 
 # export BASE_MODEL='meta-llama/Llama-3.2-3B'
-export EXPERIMENT_NAME=musique-ppo-qwen2.5-3b-instruct-em_base_topk${TOPK}_maxturns${MAX_TURN}_seed0    
+export EXPERIMENT_NAME=musique-ppo-qwen2.5-3b-instruct-em_base_topk${TOPK}_maxturns${MAX_TURN}_seed1 
 
 
 # set -x
