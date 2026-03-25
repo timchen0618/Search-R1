@@ -13,6 +13,7 @@ def write_jsonl(file_path, data):
 
 def write_last_query(data):
     for item in data:
+        print(item['last_query'])
         item['question'] = item['last_query']
         del item['last_query']
         del item['trajectory']
