@@ -14,7 +14,7 @@ export GPU_MEMORY_UTILIZATION=0.99 # 0.95 for exact match, 0.8 for llm_judge_vll
 
 # export BASE_MODEL='meta-llama/Llama-3.2-3B'
 retriever=$2
-export EXPERIMENT_NAME=qampari-ppo-qwen2.5-3b-instruct-em_base_topk${TOPK}_maxturns${MAX_TURN}_${retriever}
+export EXPERIMENT_NAME=qampari-ppo-qwen2.5-3b-instruct-em_base_topk${TOPK}_maxturns${MAX_TURN}_${retriever}_multi
 
 
 # set -x
@@ -25,8 +25,8 @@ export VLLM_ATTENTION_BACKEND=XFORMERS # vllm + qwen2-7b with flash_attn has som
 port=$1
 retriever_url="http://127.0.0.1:$port/retrieve"
 PYTHONUNBUFFERED=1 python3 -m verl.trainer.main_ppo \
-    data.train_files=$DATA_DIR/train_base.parquet \
-    data.val_files=$DATA_DIR/test_base.parquet \
+    data.train_files=$DATA_DIR/train_multi.parquet \
+    data.val_files=$DATA_DIR/test_multi.parquet \
     data.train_data_num=null \
     data.val_data_num=null \
     data.train_batch_size=512 \

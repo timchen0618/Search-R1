@@ -14,8 +14,10 @@
 from . import qa_em
 
 def _default_compute_score(data_source, solution_str, ground_truth, extra_info=None):
-    if data_source in ['nq', 'triviaqa', 'popqa', 'hotpotqa', '2wikimultihopqa', 'musique', 'bamboogle', 'qampari']:
+    if data_source in ['nq', 'triviaqa', 'popqa', 'hotpotqa', '2wikimultihopqa', 'musique', 'bamboogle']:
         return qa_em.compute_score_em(solution_str, ground_truth)
+    elif data_source == 'qampari':
+        return qa_em.compute_score_qampari(solution_str, ground_truth)
     else:
         raise NotImplementedError
     

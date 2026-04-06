@@ -122,13 +122,13 @@ def compute_score_subem(solution_str, ground_truth, method='strict', format_scor
     """
     answer = extract_solution(solution_str=solution_str)
     do_print = random.randint(1, 64) == 1
-    
+
     if do_print:
         print(f"--------------------------------")
         print(f"Golden answers: {ground_truth['target']}")
         print(f"Extracted answer: {answer}")
         print(f"Solution string: {solution_str}")
-    
+
     if answer is None:
         return 0
     else:
@@ -136,3 +136,60 @@ def compute_score_subem(solution_str, ground_truth, method='strict', format_scor
             return score
         else:
             return format_score
+
+
+def compute_score_qampari(solution_str, ground_truth, format_score=0.):
+    """F1-based scoring for QAMPARI: model must list all correct answers.
+
+    The predicted answer is split on commas/newlines into individual candidates.
+    Each gold answer is matched via substring-EM against all candidates.
+    Returns F1 = 2*P*R/(P+R) where:
+      - precision = # correctly predicted / # predicted
+      - recall    = # correctly predicted / # gold answers
+
+    Args:
+        solution_str: the full solution text (includes <answer>...</answer>)
+        ground_truth: dict with key 'target' — a list of gold answer strings
+        format_score: score returned when no answer tag is found (default 0)
+    """
+    answer = extract_solution(solution_str=solution_str)
+    do_print = random.randint(1, 64) == 1
+
+    if do_print:
+        print(f"--------------------------------")
+        print(f"[QAMPARI] Golden answers: {ground_truth['target']}")
+        print(f"[QAMPARI] Extracted answer: {answer}")
+
+    if answer is None:
+        return format_score
+
+    # Split predicted answer into individual items
+    predicted_items = [p.strip() for p in re.split(r'[,\n]', answer) if p.strip()]
+    gold_answers = ground_truth['target']
+    if isinstance(gold_answers, str):
+        gold_answers = [gold_answers]
+
+    if not predicted_items:
+        return format_score
+
+    # Count how many gold answers are matched by at least one predicted item
+    num_correct = 0
+    for gold in gold_answers:
+        norm_gold = normalize_answer(gold)
+        for pred in predicted_items:
+            if norm_gold in normalize_answer(pred):
+                num_correct += 1
+                break
+
+    precision = num_correct / len(predicted_items)
+    recall = num_correct / len(gold_answers) if ((gold_answers is not None) and (len(gold_answers) > 0)) else 0.0
+
+    if precision + recall == 0:
+        return 0.0
+
+    f1 = 2 * precision * recall / (precision + recall)
+
+    if do_print:
+        print(f"[QAMPARI] P={precision:.3f} R={recall:.3f} F1={f1:.3f}")
+
+    return f1
